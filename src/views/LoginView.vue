@@ -4,6 +4,7 @@ import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { NButton, NCard, NForm, NFormItem, NInput, NSpace, useMessage } from "naive-ui";
 import type { FormInst, FormRules } from "naive-ui";
+import { signIn } from "../api/modules/auth";
 
 const router = useRouter();
 const message = useMessage();
@@ -50,12 +51,11 @@ const handleLogin = async () => {
 
   isSubmitting.value = true;
   try {
-    const { data } = await axios.post("/api/v1/auth/sign_in", {
+    const data = await signIn({
       phone: formValue.phone.trim(),
       password: formValue.password
     });
-    console.log(data);
-    message.success(data?.message || "登录成功");
+    message.success(data.message || `欢迎回来，${data.user.name}`);
     router.push("/tools");
   } catch (error) {
     if (axios.isAxiosError(error)) {
