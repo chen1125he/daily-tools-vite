@@ -57,7 +57,10 @@ onMounted(() => {
       <n-card title="家务类型列表" style="width: 100%">
         <n-space vertical size="medium" class="content-stack">
           <n-space justify="space-between">
-            <n-button type="primary" @click="router.push('/chores/create')">创建家务类型</n-button>
+            <n-space>
+              <n-button type="primary" @click="router.push('/chores/create')">创建家务类型</n-button>
+              <n-button type="default" @click="router.push('/chores/records')">家务记录管理</n-button>
+            </n-space>
           </n-space>
           <chore-list-table
             :chores="chores"

@@ -21,6 +21,10 @@ export const listChores = async (): Promise<Chore[]> => {
   return await http.get<Chore[], Chore[]>("/v1/chores");
 };
 
+export const listActiveChores = async (): Promise<Chore[]> => {
+  return await http.get<Chore[], Chore[]>("/v1/chores?active=true");
+};
+
 export const getChore = async (id: number): Promise<Chore> => {
   return await http.get<Chore, Chore>(`/v1/chores/${id}`);
 };

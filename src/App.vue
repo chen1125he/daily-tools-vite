@@ -47,9 +47,6 @@ watch(
       <n-layout class="layout">
         <n-layout-header bordered class="header">
           <n-space>
-            <n-button :type="isLoginPage ? 'primary' : 'default'" @click="go('/login')">
-              登录
-            </n-button>
             <n-button :type="isToolsPage ? 'primary' : 'default'" @click="go('/tools')">
               功能页
             </n-button>
