@@ -36,6 +36,15 @@ export const getAccessToken = (): string | null => {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 };
 
+export const hasActiveSession = (): boolean => {
+  const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+  const expiresAtRaw = localStorage.getItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
+  if (!accessToken || !expiresAtRaw) return false;
+  const expiresAt = Number(expiresAtRaw);
+  if (!Number.isFinite(expiresAt)) return false;
+  return expiresAt > Date.now();
+};
+
 export const clearAuthSession = (): void => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_KEY);

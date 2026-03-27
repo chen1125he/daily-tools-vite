@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   NButton,
@@ -10,15 +10,35 @@ import {
   NMessageProvider,
   NSpace
 } from "naive-ui";
+import { clearAuthSession, hasActiveSession } from "./api/session";
 
 const route = useRoute();
 const router = useRouter();
 const isLoginPage = computed(() => route.path === "/login");
+const isToolsPage = computed(() => route.path === "/tools");
+const isChoresPage = computed(() => route.path.startsWith("/chores"));
+const isLoggedIn = ref(hasActiveSession());
 
 const go = (path: string) => {
   if (route.path === path) return;
+  console.log("go", path);
   router.push(path);
 };
+
+const handleLogout = async () => {
+  clearAuthSession();
+  isLoggedIn.value = false;
+  if (!isLoginPage.value) {
+    await router.replace("/login");
+  }
+};
+
+watch(
+  () => route.fullPath,
+  () => {
+    isLoggedIn.value = hasActiveSession();
+  }
+);
 </script>
 
 <template>
@@ -30,9 +50,13 @@ const go = (path: string) => {
             <n-button :type="isLoginPage ? 'primary' : 'default'" @click="go('/login')">
               登录
             </n-button>
-            <n-button :type="!isLoginPage ? 'primary' : 'default'" @click="go('/tools')">
+            <n-button :type="isToolsPage ? 'primary' : 'default'" @click="go('/tools')">
               功能页
             </n-button>
+            <n-button :type="isChoresPage ? 'primary' : 'default'" @click="go('/chores')">
+              家务管理
+            </n-button>
+            <n-button v-if="isLoggedIn" type="error" ghost @click="handleLogout">退出登录</n-button>
           </n-space>
         </n-layout-header>
         <n-layout-content class="content">

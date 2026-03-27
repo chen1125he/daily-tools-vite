@@ -9,7 +9,8 @@ const router = useRouter();
   <main class="page">
     <n-card title="功能页" class="tools-card">
       <n-space vertical>
-        <p>这里是你的其他功能入口页面，后续可以继续拆分成更多路由页面。</p>
+        <p>这里是功能入口页，你可以从这里进入具体业务模块。</p>
+        <n-button type="primary" @click="router.push('/chores')">家务类型管理</n-button>
         <n-button type="default" @click="router.push('/login')">返回登录</n-button>
       </n-space>
     </n-card>
