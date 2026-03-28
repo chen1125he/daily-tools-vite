@@ -20,7 +20,8 @@ const updating = ref(false);
 const formValue = reactive<ChorePayload>({
   name: "",
   description: "",
-  default_contribution_points: 0,
+  search_keywords: "",
+  default_points: 0,
   active: true
 });
 
@@ -29,7 +30,8 @@ watch(
   (chore) => {
     formValue.name = chore.name;
     formValue.description = chore.description;
-    formValue.default_contribution_points = chore.default_contribution_points;
+    formValue.search_keywords = chore.search_keywords ?? "";
+    formValue.default_points = chore.default_points;
     formValue.active = chore.active;
   },
   { immediate: true }
@@ -43,7 +45,7 @@ const rules: FormRules = {
       trigger: ["blur"]
     }
   ],
-  default_contribution_points: [
+  default_points: [
     {
       validator: (_rule: unknown, value: number | null | undefined) => {
         if (value === null || value === undefined) {
@@ -75,7 +77,8 @@ const handleSubmit = async () => {
     const result = await updateChore(props.chore.id, {
       name: formValue.name.trim(),
       description: formValue.description.trim(),
-      default_contribution_points: Number(formValue.default_contribution_points),
+      search_keywords: formValue.search_keywords.trim(),
+      default_points: Number(formValue.default_points),
       active: formValue.active
     });
     message.success(result.message || "家务更新成功");
@@ -113,9 +116,17 @@ const handleSubmit = async () => {
           :autosize="{ minRows: 2, maxRows: 4 }"
         />
       </n-form-item>
-      <n-form-item label="默认贡献积分" path="default_contribution_points">
+      <n-form-item label="搜索关键词" path="search_keywords">
+        <n-input
+          v-model:value="formValue.search_keywords"
+          type="textarea"
+          placeholder="用于匹配用户输入的别名、同义词等（可选）"
+          :autosize="{ minRows: 2, maxRows: 6 }"
+        />
+      </n-form-item>
+      <n-form-item label="默认贡献积分" path="default_points">
         <n-input-number
-          v-model:value="formValue.default_contribution_points"
+          v-model:value="formValue.default_points"
           :min="0"
           :max="100"
           :precision="2"

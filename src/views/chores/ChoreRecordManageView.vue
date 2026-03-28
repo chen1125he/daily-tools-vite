@@ -34,7 +34,7 @@ const createdRecordId = ref<number | null>(null);
 const adjustForm = reactive({
   performer_id: null as number | null,
   chore_id: null as number | null,
-  contribution_points: null as number | null,
+  points: null as number | null,
   performed_at: null as number | null
 });
 
@@ -70,13 +70,13 @@ const openAdjustModal = (record: {
   id: number;
   performer_id: number;
   chore_id: number | null;
-  contribution_points: string | number;
+  points: string | number;
   performed_at: string;
 }) => {
   createdRecordId.value = record.id;
   adjustForm.performer_id = record.performer_id;
   adjustForm.chore_id = record.chore_id;
-  adjustForm.contribution_points = Number(record.contribution_points);
+  adjustForm.points = Number(record.points);
   const parsedTime = new Date(record.performed_at).getTime();
   adjustForm.performed_at = Number.isNaN(parsedTime) ? Date.now() : parsedTime;
   modalVisible.value = true;
@@ -123,7 +123,7 @@ const handleSaveAdjustments = async () => {
     message.warning("请选择家务");
     return;
   }
-  if (adjustForm.contribution_points === null || !Number.isFinite(adjustForm.contribution_points)) {
+  if (adjustForm.points === null || !Number.isFinite(adjustForm.points)) {
     message.warning("请输入有效的贡献分");
     return;
   }
@@ -137,7 +137,7 @@ const handleSaveAdjustments = async () => {
     const result = await updateChoreRecord(createdRecordId.value, {
       performer_id: adjustForm.performer_id,
       chore_id: adjustForm.chore_id,
-      contribution_points: Number(adjustForm.contribution_points),
+      points: Number(adjustForm.points),
       performed_at: new Date(adjustForm.performed_at).toISOString()
     });
     message.success(result.message || "家务记录已更新");
@@ -190,7 +190,7 @@ onMounted(() => {
           </n-form-item>
           <n-form-item label="贡献分">
             <n-input-number
-              v-model:value="adjustForm.contribution_points"
+              v-model:value="adjustForm.points"
               :min="0"
               :precision="2"
               :step="1"

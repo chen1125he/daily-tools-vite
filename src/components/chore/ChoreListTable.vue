@@ -34,7 +34,7 @@ const columns: DataTableColumns<Chore> = [
   },
   {
     title: "默认积分",
-    key: "default_contribution_points",
+    key: "default_points",
     width: 120
   },
   {

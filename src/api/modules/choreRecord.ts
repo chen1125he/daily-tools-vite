@@ -8,7 +8,7 @@ export interface ChoreRecord {
   id: number;
   chore_id: number | null;
   performer_id: number;
-  contribution_points: string | number;
+  points: string | number;
   performed_at: string;
   chore_name?: string;
   source_text?: string;
@@ -28,7 +28,7 @@ export const createChoreRecord = async (
 export interface UpdateChoreRecordPayload {
   performer_id: number;
   chore_id: number;
-  contribution_points: number;
+  points: number;
   performed_at: string;
 }
 

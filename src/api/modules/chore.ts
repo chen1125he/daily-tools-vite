@@ -5,7 +5,8 @@ export interface Chore {
   id: number;
   name: string;
   description: string;
-  default_contribution_points: number;
+  search_keywords?: string;
+  default_points: number;
   active: boolean;
   message?: string;
 }
@@ -13,7 +14,8 @@ export interface Chore {
 export interface ChorePayload {
   name: string;
   description: string;
-  default_contribution_points: number;
+  search_keywords: string;
+  default_points: number;
   active: boolean;
 }
 
