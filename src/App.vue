@@ -10,7 +10,8 @@ import {
   NMessageProvider,
   NSpace
 } from "naive-ui";
-import { clearAuthSession, hasActiveSession } from "./api/session";
+import { signOut } from "./api/modules/auth";
+import { hasActiveSession } from "./api/session";
 
 const route = useRoute();
 const router = useRouter();
@@ -26,7 +27,7 @@ const go = (path: string) => {
 };
 
 const handleLogout = async () => {
-  clearAuthSession();
+  await signOut();
   isLoggedIn.value = false;
   if (!isLoginPage.value) {
     await router.replace("/login");
