@@ -154,7 +154,7 @@ const handleSaveAdjustments = async () => {
 };
 
 onMounted(() => {
-  loadSelectOptions();
+  void loadSelectOptions();
 });
 </script>
 
@@ -163,7 +163,10 @@ onMounted(() => {
     <div class="page-inner">
       <n-card title="家务记录管理" style="width: 100%">
         <n-space vertical size="medium" class="content-stack">
-          <n-button quaternary @click="router.push('/chores')">返回家务类型列表</n-button>
+          <n-space>
+            <n-button quaternary @click="router.push('/chores')">返回家务类型列表</n-button>
+            <n-button type="default" @click="router.push('/chores/records/list')">查看记录列表</n-button>
+          </n-space>
           <n-input
             v-model:value="text"
             type="textarea"

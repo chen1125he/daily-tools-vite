@@ -4,6 +4,72 @@ export interface ChoreRecordCreatePayload {
   text: string;
 }
 
+/** 列表接口嵌套的用户结构 */
+export interface ChoreRecordUser {
+  id: number;
+  phone?: string | null;
+  name?: string | null;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** 列表接口嵌套的家务项 */
+export interface ChoreRecordNestedChore {
+  id: number;
+  name: string;
+  active?: boolean;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  default_points?: number | string | null;
+}
+
+export interface ChoreRecordListItem {
+  id: number;
+  chore_type?: string;
+  chore_id: number | null;
+  custom_chore_name?: string | null;
+  chore_name?: string | null;
+  performer_id: number;
+  creator_id?: number;
+  source_text?: string | null;
+  points: string | number;
+  performed_at: string;
+  chore: ChoreRecordNestedChore | null;
+  performer: ChoreRecordUser;
+  creator?: ChoreRecordUser;
+}
+
+export interface ChoreRecordsListMeta {
+  total_pages: number;
+  current_page: number;
+  total_count: number;
+  next_page: number | null;
+}
+
+export interface ChoreRecordsListResponse {
+  data: ChoreRecordListItem[];
+  meta: ChoreRecordsListMeta;
+}
+
+export interface ListChoreRecordsParams {
+  page?: number;
+  limit?: number;
+  performer_id?: number;
+  chore_id?: number;
+  performed_at_from?: string;
+  performed_at_to?: string;
+}
+
+export const listChoreRecords = async (
+  params?: ListChoreRecordsParams
+): Promise<ChoreRecordsListResponse> => {
+  return await http.get<ChoreRecordsListResponse, ChoreRecordsListResponse>("/v1/chore_records", {
+    params
+  });
+};
+
 export interface ChoreRecord {
   id: number;
   chore_id: number | null;
