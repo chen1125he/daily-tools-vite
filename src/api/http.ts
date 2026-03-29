@@ -1,18 +1,25 @@
-import axios from "axios";
-import { getAccessToken } from "./session";
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { ensureValidAccessToken } from "./authRefresh";
+import { unwrapApiEnvelope } from "./apiResponse";
+import { clearAuthSession, getAccessToken, isAccessTokenValid, isRefreshTokenValid } from "./session";
 
-export interface ApiResponse<T> {
-  code: number;
-  message?: string;
-  data: T;
-}
+export type { ApiResponse } from "./apiResponse";
 
 const http = axios.create({
   baseURL: "/api",
   timeout: 10000
 });
 
-http.interceptors.request.use((config) => {
+function isPublicAuthPath(config: InternalAxiosRequestConfig): boolean {
+  const u = config.url || "";
+  return u.includes("/v1/auth/sign_in");
+}
+
+http.interceptors.request.use(async (config) => {
+  if (isPublicAuthPath(config)) {
+    return config;
+  }
+  await ensureValidAccessToken();
   const accessToken = getAccessToken();
   if (accessToken) {
     config.headers = config.headers || {};
@@ -21,19 +28,36 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
-http.interceptors.response.use((response) => {
-  const payload = response.data as ApiResponse<unknown>;
-  const { data, message } = payload;
-  if (
-    message !== undefined &&
-    data !== null &&
-    typeof data === "object" &&
-    !Array.isArray(data) &&
-    !("message" in data)
-  ) {
-    return { ...data, message } as unknown as typeof response;
+http.interceptors.response.use(
+  (response) => {
+    return unwrapApiEnvelope(response.data) as unknown as typeof response;
+  },
+  async (error: AxiosError) => {
+    const status = error.response?.status;
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    if (status !== 401 || !originalRequest || originalRequest._retry || isPublicAuthPath(originalRequest)) {
+      return Promise.reject(error);
+    }
+    originalRequest._retry = true;
+    if (!isRefreshTokenValid()) {
+      clearAuthSession();
+      const { default: router } = await import("../router");
+      await router.replace("/login");
+      return Promise.reject(error);
+    }
+    try {
+      await ensureValidAccessToken({ force: true });
+      if (!isAccessTokenValid()) {
+        clearAuthSession();
+        const { default: router } = await import("../router");
+        await router.replace("/login");
+        return Promise.reject(error);
+      }
+      return http(originalRequest);
+    } catch {
+      return Promise.reject(error);
+    }
   }
-  return data as unknown as typeof response;
-});
+);
 
 export default http;

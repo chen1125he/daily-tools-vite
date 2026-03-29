@@ -36,13 +36,31 @@ export const getAccessToken = (): string | null => {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 };
 
-export const hasActiveSession = (): boolean => {
+export const getRefreshToken = (): string | null => {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+};
+
+export const isAccessTokenValid = (): boolean => {
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
   const expiresAtRaw = localStorage.getItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
   if (!accessToken || !expiresAtRaw) return false;
   const expiresAt = Number(expiresAtRaw);
   if (!Number.isFinite(expiresAt)) return false;
   return expiresAt > Date.now();
+};
+
+export const isRefreshTokenValid = (): boolean => {
+  const rt = localStorage.getItem(REFRESH_TOKEN_KEY);
+  const expiresAtRaw = localStorage.getItem(REFRESH_TOKEN_EXPIRES_AT_KEY);
+  if (!rt || !expiresAtRaw) return false;
+  const expiresAt = Number(expiresAtRaw);
+  if (!Number.isFinite(expiresAt)) return false;
+  return expiresAt > Date.now();
+};
+
+/** 仍在登录窗口内：access 未过期，或 refresh 未过期（可静默续期 access） */
+export const hasActiveSession = (): boolean => {
+  return isAccessTokenValid() || isRefreshTokenValid();
 };
 
 export const clearAuthSession = (): void => {
