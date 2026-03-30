@@ -164,8 +164,8 @@ onMounted(() => {
       <n-card title="家务记录管理" style="width: 100%">
         <n-space vertical size="medium" class="content-stack">
           <n-space>
-            <n-button quaternary @click="router.push('/chores')">返回家务类型列表</n-button>
-            <n-button type="default" @click="router.push('/chores/records/list')">查看记录列表</n-button>
+            <n-button type="default" @click="router.push('/chores/list')">家务类型列表</n-button>
+            <n-button type="default" @click="router.push('/chores/records/list')">家务记录列表</n-button>
           </n-space>
           <n-input
             v-model:value="text"

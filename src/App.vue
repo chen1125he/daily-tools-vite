@@ -17,7 +17,7 @@ const route = useRoute();
 const router = useRouter();
 const isLoginPage = computed(() => route.path === "/login");
 const isToolsPage = computed(() => route.path === "/tools");
-const isChoresPage = computed(() => route.path.startsWith("/chores"));
+const isChoresPage = computed(() => route.path.startsWith("/chores/records"));
 const isLoggedIn = ref(hasActiveSession());
 
 const go = (path: string) => {
@@ -51,7 +51,7 @@ watch(
             <n-button :type="isToolsPage ? 'primary' : 'default'" @click="go('/tools')">
               功能页
             </n-button>
-            <n-button :type="isChoresPage ? 'primary' : 'default'" @click="go('/chores')">
+            <n-button :type="isChoresPage ? 'primary' : 'default'" @click="go('/chores/records')">
               家务管理
             </n-button>
             <n-button v-if="isLoggedIn" type="error" ghost @click="handleLogout">退出登录</n-button>

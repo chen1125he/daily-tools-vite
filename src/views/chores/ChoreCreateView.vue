@@ -15,7 +15,7 @@ const handleCreated = () => {
     <div class="page-inner">
       <n-card title="创建家务类型" style="width: 100%">
         <n-space vertical size="medium" class="content-stack">
-          <n-button quaternary @click="router.push('/chores')">返回列表</n-button>
+          <n-button quaternary @click="router.push('/chores/list')">返回列表</n-button>
           <chore-create-form @created="handleCreated" />
         </n-space>
       </n-card>

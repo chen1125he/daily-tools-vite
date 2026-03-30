@@ -106,3 +106,7 @@ export const updateChoreRecord = async (
 ): Promise<ChoreRecord> => {
   return await http.patch<ChoreRecord, ChoreRecord>(`/v1/chore_records/${id}`, payload);
 };
+
+export const deleteChoreRecord = async (id: number): Promise<{ message?: string }> => {
+  return await http.delete<{ message?: string }, { message?: string }>(`/v1/chore_records/${id}`);
+};

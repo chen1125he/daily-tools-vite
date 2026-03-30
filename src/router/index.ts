@@ -25,8 +25,8 @@ const routes: RouteRecordRaw[] = [
     component: ToolsView
   },
   {
-    path: "/chores",
-    name: "chores",
+    path: "/chores/list",
+    name: "chores-list",
     component: ChoreManageView
   },
   {

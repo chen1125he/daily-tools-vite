@@ -53,7 +53,7 @@ onMounted(() => {
     <div class="page-inner">
       <n-card title="编辑家务类型" style="width: 100%">
         <n-space vertical size="medium" class="content-stack">
-          <n-button quaternary @click="router.push('/chores')">返回列表</n-button>
+          <n-button quaternary @click="router.push('/chores/list')">返回列表</n-button>
           <n-spin v-if="loading" size="small" />
           <chore-edit-form v-else-if="chore" :chore="chore" @updated="handleUpdated" />
         </n-space>
