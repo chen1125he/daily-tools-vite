@@ -77,7 +77,7 @@ const fetchRecords = async () => {
       page: pagination.page,
       limit: pagination.pageSize
     });
-    records.value = res.data;
+    records.value = res.items;
     
     pagination.itemCount = res.meta.total_count;
     pagination.page = res.meta.current_page;

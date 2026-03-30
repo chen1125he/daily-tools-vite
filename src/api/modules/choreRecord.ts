@@ -49,8 +49,10 @@ export interface ChoreRecordsListMeta {
 }
 
 export interface ChoreRecordsListResponse {
-  data: ChoreRecordListItem[];
+  items: ChoreRecordListItem[];
   meta: ChoreRecordsListMeta;
+  /** 筛选条件下的统计等，字段以后端为准 */
+  summary?: Record<string, unknown>;
 }
 
 export interface ListChoreRecordsParams {

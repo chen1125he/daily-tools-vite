@@ -1,3 +1,4 @@
+import { unwrapListData } from "../apiResponse";
 import http from "../http";
 
 export interface User {
@@ -8,5 +9,6 @@ export interface User {
 }
 
 export const listUsers = async (): Promise<User[]> => {
-  return await http.get<User[], User[]>("/v1/users");
+  const raw = await http.get<unknown, unknown>("/v1/users");
+  return unwrapListData<User>(raw);
 };

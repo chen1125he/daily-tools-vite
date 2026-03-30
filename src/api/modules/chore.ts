@@ -1,4 +1,5 @@
 import axios from "axios";
+import { unwrapListData } from "../apiResponse";
 import http from "../http";
 
 export interface Chore {
@@ -20,11 +21,13 @@ export interface ChorePayload {
 }
 
 export const listChores = async (): Promise<Chore[]> => {
-  return await http.get<Chore[], Chore[]>("/v1/chores");
+  const raw = await http.get<unknown, unknown>("/v1/chores");
+  return unwrapListData<Chore>(raw);
 };
 
 export const listActiveChores = async (): Promise<Chore[]> => {
-  return await http.get<Chore[], Chore[]>("/v1/chores?active=true");
+  const raw = await http.get<unknown, unknown>("/v1/chores?active=true");
+  return unwrapListData<Chore>(raw);
 };
 
 export const getChore = async (id: number): Promise<Chore> => {
