@@ -48,11 +48,16 @@ export interface ChoreRecordsListMeta {
   next_page: number | null;
 }
 
+export interface ChoreRecordsSummaryItem {
+  performer_id: number;
+  performer_name: string;
+  points: string | number;
+}
+
 export interface ChoreRecordsListResponse {
   items: ChoreRecordListItem[];
   meta: ChoreRecordsListMeta;
-  /** 筛选条件下的统计等，字段以后端为准 */
-  summary?: Record<string, unknown>;
+  summary?: ChoreRecordsSummaryItem[];
 }
 
 export interface ListChoreRecordsParams {

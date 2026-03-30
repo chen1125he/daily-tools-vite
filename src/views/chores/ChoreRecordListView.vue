@@ -20,7 +20,7 @@ import type { DataTableColumns } from "naive-ui";
 import { listChores } from "../../api/modules/chore";
 import type { Chore } from "../../api/modules/chore";
 import { deleteChoreRecord, listChoreRecords, updateChoreRecord } from "../../api/modules/choreRecord";
-import type { ChoreRecordListItem } from "../../api/modules/choreRecord";
+import type { ChoreRecordListItem, ChoreRecordsSummaryItem } from "../../api/modules/choreRecord";
 import { listUsers } from "../../api/modules/user";
 import type { User } from "../../api/modules/user";
 
@@ -40,14 +40,47 @@ function performerDisplayName(row: ChoreRecordListItem): string {
   return row.performer?.name ?? row.performer?.phone ?? `用户 #${row.performer_id}`;
 }
 
+function startOfDayTimestamp(time: number): number {
+  const d = new Date(time);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function endOfDayTimestamp(time: number): number {
+  const d = new Date(time);
+  d.setHours(23, 59, 59, 999);
+  return d.getTime();
+}
+
+function getDefaultPerformedDateRange(): [number, number] {
+  const now = new Date();
+  const day = now.getDay();
+  const daysFromMonday = day === 0 ? 6 : day - 1;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - daysFromMonday);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  return [startOfDayTimestamp(weekStart.getTime()), endOfDayTimestamp(weekEnd.getTime())];
+}
+
+function summaryPerformerName(item: ChoreRecordsSummaryItem): string {
+  return item.performer_name || `用户 #${item.performer_id}`;
+}
+
 const listLoading = ref(false);
 const records = ref<ChoreRecordListItem[]>([]);
+const summary = ref<ChoreRecordsSummaryItem[]>([]);
 const users = ref<User[]>([]);
 const chores = ref<Chore[]>([]);
 const modalVisible = ref(false);
 const savingEdit = ref(false);
 const deletingRecordId = ref<number | null>(null);
 const editingRecordId = ref<number | null>(null);
+const filters = reactive({
+  performer_id: null as number | null,
+  chore_id: null as number | null,
+  performed_at_range: getDefaultPerformedDateRange() as [number, number] | null
+});
 const editForm = reactive({
   performer_id: null as number | null,
   chore_id: null as number | null,
@@ -247,15 +280,28 @@ const loadSelectOptions = async () => {
 const fetchRecords = async () => {
   listLoading.value = true;
   try {
+    const performedAtFrom = filters.performed_at_range
+      ? new Date(startOfDayTimestamp(filters.performed_at_range[0])).toISOString()
+      : undefined;
+    const performedAtTo = filters.performed_at_range
+      ? new Date(endOfDayTimestamp(filters.performed_at_range[1])).toISOString()
+      : undefined;
+
     const res = await listChoreRecords({
       page: pagination.page,
-      limit: pagination.pageSize
+      limit: pagination.pageSize,
+      performer_id: filters.performer_id ?? undefined,
+      chore_id: filters.chore_id ?? undefined,
+      performed_at_from: performedAtFrom,
+      performed_at_to: performedAtTo
     });
     records.value = res.items;
+    summary.value = res.summary ?? [];
 
     pagination.itemCount = res.meta.total_count;
     pagination.page = res.meta.current_page;
   } catch (error) {
+    summary.value = [];
     if (axios.isAxiosError(error)) {
       message.error(error.response?.data?.message || "加载家务记录列表失败");
     } else {
@@ -264,6 +310,19 @@ const fetchRecords = async () => {
   } finally {
     listLoading.value = false;
   }
+};
+
+const handleSearch = () => {
+  pagination.page = 1;
+  void fetchRecords();
+};
+
+const handleResetFilters = () => {
+  filters.performer_id = null;
+  filters.chore_id = null;
+  filters.performed_at_range = getDefaultPerformedDateRange();
+  pagination.page = 1;
+  void fetchRecords();
 };
 
 onMounted(() => {
@@ -277,6 +336,48 @@ onMounted(() => {
     <div class="page-inner">
       <n-card title="家务记录列表" style="width: 100%">
         <n-space vertical size="medium" class="content-stack">
+          <n-form label-placement="left" :show-feedback="false">
+            <n-space align="end" wrap>
+              <n-form-item label="家务名">
+                <n-select
+                  v-model:value="filters.chore_id"
+                  :options="choreOptions"
+                  clearable
+                  filterable
+                  placeholder="请选择家务"
+                  style="min-width: 220px"
+                />
+              </n-form-item>
+              <n-form-item label="执行人">
+                <n-select
+                  v-model:value="filters.performer_id"
+                  :options="userOptions"
+                  clearable
+                  filterable
+                  placeholder="请选择执行人"
+                  style="min-width: 220px"
+                />
+              </n-form-item>
+              <n-form-item label="执行时间">
+                <n-date-picker
+                  v-model:value="filters.performed_at_range"
+                  type="daterange"
+                  clearable
+                  style="width: 360px"
+                />
+              </n-form-item>
+              <n-space>
+                <n-button type="primary" @click="handleSearch">筛选</n-button>
+                <n-button @click="handleResetFilters">重置</n-button>
+              </n-space>
+            </n-space>
+          </n-form>
+          <n-space v-if="summary.length > 0" align="center" wrap>
+            <span>分数汇总：</span>
+            <span v-for="item in summary" :key="item.performer_id">
+              {{ summaryPerformerName(item) }}：{{ item.points }}
+            </span>
+          </n-space>
           <n-space>
             <n-button type="primary" @click="router.push('/chores/records')">新建记录</n-button>
           </n-space>
