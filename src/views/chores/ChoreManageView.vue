@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import axios from "axios";
-import { onMounted, ref } from "vue";
+import { h, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { NButton, NCard, NSpace, useMessage } from "naive-ui";
+import { NButton, NCard, NDataTable, NPopconfirm, NSpace, useMessage } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
 import { deleteChore, listChores } from "../../api/modules/chore";
 import type { Chore } from "../../api/modules/chore";
-import ChoreListTable from "../../components/chore/ChoreListTable.vue";
 
 const router = useRouter();
 const message = useMessage();
@@ -13,6 +13,73 @@ const message = useMessage();
 const loading = ref(false);
 const chores = ref<Chore[]>([]);
 const deletingId = ref<number | null>(null);
+
+const columns: DataTableColumns<Chore> = [
+  {
+    title: "家务名",
+    key: "name",
+    ellipsis: { tooltip: true }
+  },
+  {
+    title: "描述",
+    key: "description",
+    ellipsis: { tooltip: true }
+  },
+  {
+    title: "默认分数",
+    key: "default_points",
+    width: 100,
+    render: (row) => String(row.default_points)
+  },
+  {
+    title: "状态",
+    key: "active",
+    width: 100,
+    render: (row) => (row.active ? "启用" : "停用")
+  },
+  {
+    title: "操作",
+    key: "actions",
+    width: 180,
+    render: (row) =>
+      h(
+        NSpace,
+        { size: "small" },
+        {
+          default: () => [
+            h(
+              NButton,
+              {
+                size: "small",
+                onClick: () => router.push(`/chores/${row.id}/edit`)
+              },
+              { default: () => "编辑" }
+            ),
+            h(
+              NPopconfirm,
+              {
+                onPositiveClick: () => handleDelete(row)
+              },
+              {
+                default: () => `确定删除「${row.name}」吗？`,
+                trigger: () =>
+                  h(
+                    NButton,
+                    {
+                      size: "small",
+                      type: "error",
+                      ghost: true,
+                      loading: deletingId.value === row.id
+                    },
+                    { default: () => "删除" }
+                  )
+              }
+            )
+          ]
+        }
+      )
+  }
+];
 
 const fetchChores = async () => {
   loading.value = true;
@@ -62,12 +129,12 @@ onMounted(() => {
               <n-button type="default" @click="router.push('/chores/records')">家务记录管理</n-button>
             </n-space>
           </n-space>
-          <chore-list-table
-            :chores="chores"
+          <n-data-table
+            :columns="columns"
+            :data="chores"
             :loading="loading"
-            :deleting-id="deletingId"
-            @edit="(chore) => router.push(`/chores/${chore.id}/edit`)"
-            @delete="handleDelete"
+            :bordered="false"
+            :scroll-x="720"
           />
         </n-space>
       </n-card>
