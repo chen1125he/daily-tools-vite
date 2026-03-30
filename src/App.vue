@@ -46,7 +46,7 @@ watch(
   <n-config-provider>
     <n-message-provider>
       <n-layout class="layout">
-        <n-layout-header bordered class="header">
+        <n-layout-header bordered class="header" v-if="!isLoginPage">
           <n-space>
             <n-button :type="isToolsPage ? 'primary' : 'default'" @click="go('/tools')">
               功能页
@@ -67,16 +67,25 @@ watch(
 
 <style scoped>
 .layout {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .header {
   display: flex;
   align-items: center;
   padding: 12px 20px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .content {
+  flex: 1;
   padding: 20px;
+  overflow-y: auto;
 }
 </style>

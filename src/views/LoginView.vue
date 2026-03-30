@@ -116,12 +116,12 @@ const handleLogin = async () => {
 
 <style scoped>
 .page {
-  min-height: calc(100vh - 86px);
+  height: calc(100vh - 40px);
   display: grid;
   place-items: center;
 }
 
 .login-card {
-  width: min(100vw - 32px, 420px);
+  width: min(100vw - 40px, 420px);
 }
 </style>

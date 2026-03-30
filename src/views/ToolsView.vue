@@ -19,8 +19,6 @@ const router = useRouter();
 
 <style scoped>
 .page {
-  min-height: calc(100vh - 86px);
-  display: grid;
-  place-items: center;
+
 }
 </style>
