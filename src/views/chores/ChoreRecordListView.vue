@@ -9,9 +9,12 @@ import {
   NDatePicker,
   NForm,
   NFormItem,
+  NInput,
   NInputNumber,
   NModal,
   NPopconfirm,
+  NRadio,
+  NRadioGroup,
   NSelect,
   NSpace,
   useMessage
@@ -20,7 +23,11 @@ import type { DataTableColumns } from "naive-ui";
 import { listChores } from "../../api/modules/chore";
 import type { Chore } from "../../api/modules/chore";
 import { deleteChoreRecord, listChoreRecords, updateChoreRecord } from "../../api/modules/choreRecord";
-import type { ChoreRecordListItem, ChoreRecordsSummaryItem } from "../../api/modules/choreRecord";
+import type {
+  ChoreRecordListItem,
+  ChoreRecordsSummaryItem,
+  ChoreRecordType
+} from "../../api/modules/choreRecord";
 import { listUsers } from "../../api/modules/user";
 import type { User } from "../../api/modules/user";
 
@@ -33,7 +40,13 @@ function formatPerformedAt(iso: string): string {
 }
 
 function choreDisplayName(row: ChoreRecordListItem): string {
-  return row.chore?.name ?? row.chore_name ?? "—";
+  return row.chore?.name ?? row.custom_chore_name ?? row.chore_name ?? "—";
+}
+
+function inferChoreRecordType(record: ChoreRecordListItem): ChoreRecordType {
+  if (record.chore_type === "custom") return "custom";
+  if (record.chore_type === "catalog") return "catalog";
+  return record.chore_id != null ? "catalog" : "custom";
 }
 
 function performerDisplayName(row: ChoreRecordListItem): string {
@@ -83,7 +96,10 @@ const filters = reactive({
 });
 const editForm = reactive({
   performer_id: null as number | null,
+  chore_type: "catalog" as ChoreRecordType,
   chore_id: null as number | null,
+  custom_chore_name: "",
+  description: "",
   points: null as number | null,
   performed_at: null as number | null
 });
@@ -122,7 +138,10 @@ const choreOptions = computed(() =>
 const openEditModal = (record: ChoreRecordListItem) => {
   editingRecordId.value = record.id;
   editForm.performer_id = record.performer_id;
+  editForm.chore_type = inferChoreRecordType(record);
   editForm.chore_id = record.chore_id;
+  editForm.custom_chore_name = record.custom_chore_name ?? "";
+  editForm.description = record.description ?? "";
   editForm.points = Number(record.points);
   const parsedTime = new Date(record.performed_at).getTime();
   editForm.performed_at = Number.isNaN(parsedTime) ? Date.now() : parsedTime;
@@ -142,8 +161,13 @@ const handleSaveEdit = async () => {
     message.warning("请选择执行人");
     return;
   }
-  if (!editForm.chore_id) {
-    message.warning("请选择家务");
+  if (editForm.chore_type === "catalog") {
+    if (!editForm.chore_id) {
+      message.warning("请选择常用家务");
+      return;
+    }
+  } else if (!editForm.custom_chore_name.trim()) {
+    message.warning("请输入自定义家务名");
     return;
   }
   if (editForm.points === null || !Number.isFinite(editForm.points)) {
@@ -157,11 +181,16 @@ const handleSaveEdit = async () => {
 
   savingEdit.value = true;
   try {
+    const desc = editForm.description.trim();
     const result = await updateChoreRecord(editingRecordId.value, {
       performer_id: editForm.performer_id,
-      chore_id: editForm.chore_id,
       points: Number(editForm.points),
-      performed_at: new Date(editForm.performed_at).toISOString()
+      performed_at: new Date(editForm.performed_at).toISOString(),
+      chore_type: editForm.chore_type,
+      ...(editForm.chore_type === "catalog"
+        ? { chore_id: editForm.chore_id!, custom_chore_name: null }
+        : { chore_id: null, custom_chore_name: editForm.custom_chore_name.trim() }),
+      description: desc.length > 0 ? desc : null
     });
     message.success(result.message || "家务记录已更新");
     modalVisible.value = false;
@@ -393,14 +422,33 @@ onMounted(() => {
         </n-space>
       </n-card>
     </div>
-    <n-modal v-model:show="modalVisible" preset="card" title="编辑家务记录" style="width: 560px">
+    <n-modal v-model:show="modalVisible" preset="card" title="编辑家务记录" style="width: 600px">
       <n-form label-placement="top">
         <n-space vertical size="medium">
           <n-form-item label="执行人">
             <n-select v-model:value="editForm.performer_id" :options="userOptions" placeholder="请选择执行人" />
           </n-form-item>
-          <n-form-item label="家务">
-            <n-select v-model:value="editForm.chore_id" :options="choreOptions" placeholder="请选择家务" />
+          <n-form-item label="家务类型">
+            <n-radio-group v-model:value="editForm.chore_type">
+              <n-space>
+                <n-radio value="catalog">常用家务</n-radio>
+                <n-radio value="custom">自定义家务</n-radio>
+              </n-space>
+            </n-radio-group>
+          </n-form-item>
+          <n-form-item v-if="editForm.chore_type === 'catalog'" label="常用家务">
+            <n-select v-model:value="editForm.chore_id" :options="choreOptions" placeholder="请选择家务" filterable />
+          </n-form-item>
+          <n-form-item v-else label="自定义家务名">
+            <n-input v-model:value="editForm.custom_chore_name" placeholder="输入自定义家务名称" />
+          </n-form-item>
+          <n-form-item label="家务描述">
+            <n-input
+              v-model:value="editForm.description"
+              type="textarea"
+              placeholder="可选，补充这条记录的说明"
+              :autosize="{ minRows: 2, maxRows: 6 }"
+            />
           </n-form-item>
           <n-form-item label="分数">
             <n-input-number

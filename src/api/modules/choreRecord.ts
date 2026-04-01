@@ -25,12 +25,16 @@ export interface ChoreRecordNestedChore {
   default_points?: number | string | null;
 }
 
+export type ChoreRecordType = "catalog" | "custom";
+
 export interface ChoreRecordListItem {
   id: number;
   chore_type?: string;
   chore_id: number | null;
   custom_chore_name?: string | null;
   chore_name?: string | null;
+  /** 记录上的额外说明（与家务类型库里的描述不同） */
+  description?: string | null;
   performer_id: number;
   creator_id?: number;
   source_text?: string | null;
@@ -84,6 +88,9 @@ export interface ChoreRecord {
   points: string | number;
   performed_at: string;
   chore_name?: string;
+  chore_type?: string;
+  custom_chore_name?: string | null;
+  description?: string | null;
   source_text?: string;
   message?: string;
 }
@@ -100,9 +107,15 @@ export const createChoreRecord = async (
 
 export interface UpdateChoreRecordPayload {
   performer_id: number;
-  chore_id: number;
   points: number;
   performed_at: string;
+  chore_type: ChoreRecordType;
+  /** catalog 时必填；custom 时应为 null */
+  chore_id?: number | null;
+  /** custom 时必填；catalog 时应为 null */
+  custom_chore_name?: string | null;
+  /** 可选的记录说明 */
+  description?: string | null;
 }
 
 export const updateChoreRecord = async (

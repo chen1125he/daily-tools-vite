@@ -11,13 +11,20 @@ import {
   NInput,
   NInputNumber,
   NModal,
+  NRadio,
+  NRadioGroup,
   NSelect,
   NSpace,
   useMessage
 } from "naive-ui";
 import { listActiveChores } from "../../api/modules/chore";
 import type { Chore } from "../../api/modules/chore";
-import { createChoreRecord, updateChoreRecord } from "../../api/modules/choreRecord";
+import {
+  createChoreRecord,
+  updateChoreRecord,
+  type ChoreRecordCreateResult,
+  type ChoreRecordType
+} from "../../api/modules/choreRecord";
 import { listUsers } from "../../api/modules/user";
 import type { User } from "../../api/modules/user";
 
@@ -31,9 +38,22 @@ const users = ref<User[]>([]);
 const chores = ref<Chore[]>([]);
 const modalVisible = ref(false);
 const createdRecordId = ref<number | null>(null);
+
+function inferChoreRecordType(record: {
+  chore_type?: string;
+  chore_id: number | null;
+}): ChoreRecordType {
+  if (record.chore_type === "custom") return "custom";
+  if (record.chore_type === "catalog") return "catalog";
+  return record.chore_id != null ? "catalog" : "custom";
+}
+
 const adjustForm = reactive({
   performer_id: null as number | null,
+  chore_type: "catalog" as ChoreRecordType,
   chore_id: null as number | null,
+  custom_chore_name: "",
+  description: "",
   points: null as number | null,
   performed_at: null as number | null
 });
@@ -66,16 +86,13 @@ const loadSelectOptions = async () => {
   }
 };
 
-const openAdjustModal = (record: {
-  id: number;
-  performer_id: number;
-  chore_id: number | null;
-  points: string | number;
-  performed_at: string;
-}) => {
+const openAdjustModal = (record: ChoreRecordCreateResult) => {
   createdRecordId.value = record.id;
   adjustForm.performer_id = record.performer_id;
+  adjustForm.chore_type = inferChoreRecordType(record);
   adjustForm.chore_id = record.chore_id;
+  adjustForm.custom_chore_name = record.custom_chore_name ?? "";
+  adjustForm.description = record.description ?? "";
   adjustForm.points = Number(record.points);
   const parsedTime = new Date(record.performed_at).getTime();
   adjustForm.performed_at = Number.isNaN(parsedTime) ? Date.now() : parsedTime;
@@ -119,8 +136,13 @@ const handleSaveAdjustments = async () => {
     message.warning("请选择执行人");
     return;
   }
-  if (!adjustForm.chore_id) {
-    message.warning("请选择家务");
+  if (adjustForm.chore_type === "catalog") {
+    if (!adjustForm.chore_id) {
+      message.warning("请选择常用家务");
+      return;
+    }
+  } else if (!adjustForm.custom_chore_name.trim()) {
+    message.warning("请输入自定义家务名");
     return;
   }
   if (adjustForm.points === null || !Number.isFinite(adjustForm.points)) {
@@ -134,11 +156,16 @@ const handleSaveAdjustments = async () => {
 
   saveAdjusting.value = true;
   try {
+    const desc = adjustForm.description.trim();
     const result = await updateChoreRecord(createdRecordId.value, {
       performer_id: adjustForm.performer_id,
-      chore_id: adjustForm.chore_id,
       points: Number(adjustForm.points),
-      performed_at: new Date(adjustForm.performed_at).toISOString()
+      performed_at: new Date(adjustForm.performed_at).toISOString(),
+      chore_type: adjustForm.chore_type,
+      ...(adjustForm.chore_type === "catalog"
+        ? { chore_id: adjustForm.chore_id!, custom_chore_name: null }
+        : { chore_id: null, custom_chore_name: adjustForm.custom_chore_name.trim() }),
+      description: desc.length > 0 ? desc : null
     });
     message.success(result.message || "家务记录已更新");
     modalVisible.value = false;
@@ -178,7 +205,7 @@ onMounted(() => {
         </n-space>
       </n-card>
     </div>
-    <n-modal v-model:show="modalVisible" preset="card" title="调整家务记录" style="width: 560px">
+    <n-modal v-model:show="modalVisible" preset="card" title="调整家务记录" style="width: 600px">
       <n-form label-placement="top">
         <n-space vertical size="medium">
           <n-form-item label="执行人">
@@ -188,8 +215,32 @@ onMounted(() => {
               placeholder="请选择执行人"
             />
           </n-form-item>
-          <n-form-item label="家务">
-            <n-select v-model:value="adjustForm.chore_id" :options="choreOptions" placeholder="请选择家务" />
+          <n-form-item label="家务类型">
+            <n-radio-group v-model:value="adjustForm.chore_type">
+              <n-space>
+                <n-radio value="catalog">常用家务</n-radio>
+                <n-radio value="custom">自定义家务</n-radio>
+              </n-space>
+            </n-radio-group>
+          </n-form-item>
+          <n-form-item v-if="adjustForm.chore_type === 'catalog'" label="常用家务">
+            <n-select
+              v-model:value="adjustForm.chore_id"
+              :options="choreOptions"
+              placeholder="请选择家务"
+              filterable
+            />
+          </n-form-item>
+          <n-form-item v-else label="自定义家务名">
+            <n-input v-model:value="adjustForm.custom_chore_name" placeholder="输入自定义家务名称" />
+          </n-form-item>
+          <n-form-item label="家务描述">
+            <n-input
+              v-model:value="adjustForm.description"
+              type="textarea"
+              placeholder="可选，补充这条记录的说明"
+              :autosize="{ minRows: 2, maxRows: 6 }"
+            />
           </n-form-item>
           <n-form-item label="贡献分">
             <n-input-number
