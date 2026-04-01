@@ -11,6 +11,7 @@ import {
   NInput,
   NInputNumber,
   NModal,
+  NPopconfirm,
   NRadio,
   NRadioGroup,
   NSelect,
@@ -21,6 +22,7 @@ import { listActiveChores } from "../../api/modules/chore";
 import type { Chore } from "../../api/modules/chore";
 import {
   createChoreRecord,
+  deleteChoreRecord,
   updateChoreRecord,
   type ChoreRecordCreateResult,
   type ChoreRecordType
@@ -34,6 +36,7 @@ const message = useMessage();
 const text = ref("");
 const submitting = ref(false);
 const saveAdjusting = ref(false);
+const deletingRecord = ref(false);
 const users = ref<User[]>([]);
 const chores = ref<Chore[]>([]);
 const modalVisible = ref(false);
@@ -101,6 +104,29 @@ const openAdjustModal = (record: ChoreRecordCreateResult) => {
 
 const closeAdjustModal = () => {
   modalVisible.value = false;
+};
+
+const handleDeleteCreatedRecord = async (): Promise<boolean> => {
+  if (!createdRecordId.value) {
+    return false;
+  }
+  deletingRecord.value = true;
+  try {
+    const result = await deleteChoreRecord(createdRecordId.value);
+    message.success(result.message || "家务记录已删除");
+    createdRecordId.value = null;
+    modalVisible.value = false;
+    return true;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      message.error(error.response?.data?.message || "删除家务记录失败");
+    } else {
+      message.error("删除家务记录失败");
+    }
+    return false;
+  } finally {
+    deletingRecord.value = false;
+  }
 };
 
 const handleSubmit = async () => {
@@ -262,11 +288,31 @@ onMounted(() => {
         </n-space>
       </n-form>
       <template #footer>
-        <n-space justify="end">
-          <n-button @click="closeAdjustModal">取消</n-button>
-          <n-button type="primary" :loading="saveAdjusting" @click="handleSaveAdjustments">
-            保存修改
-          </n-button>
+        <n-space justify="space-between" style="width: 100%">
+          <n-popconfirm @positive-click="handleDeleteCreatedRecord">
+            <template #trigger>
+              <n-button
+                type="error"
+                ghost
+                :loading="deletingRecord"
+                :disabled="saveAdjusting"
+              >
+                删除
+              </n-button>
+            </template>
+            确定删除这条家务记录吗？
+          </n-popconfirm>
+          <n-space>
+            <n-button @click="closeAdjustModal">取消</n-button>
+            <n-button
+              type="primary"
+              :loading="saveAdjusting"
+              :disabled="deletingRecord"
+              @click="handleSaveAdjustments"
+            >
+              保存修改
+            </n-button>
+          </n-space>
         </n-space>
       </template>
     </n-modal>
