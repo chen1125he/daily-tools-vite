@@ -118,6 +118,15 @@ export interface UpdateChoreRecordPayload {
   description?: string | null;
 }
 
+/** 手动创建家务记录，请求体与更新接口一致 */
+export type CreateChoreRecordManualPayload = UpdateChoreRecordPayload;
+
+export const createChoreRecordManual = async (
+  payload: CreateChoreRecordManualPayload
+): Promise<ChoreRecordCreateResult> => {
+  return await http.post<ChoreRecordCreateResult, ChoreRecordCreateResult>("/v1/chore_records", payload);
+};
+
 export const updateChoreRecord = async (
   id: number,
   payload: UpdateChoreRecordPayload

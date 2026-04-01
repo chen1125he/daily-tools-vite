@@ -7,6 +7,7 @@ import ChoreCreateView from "../views/chores/ChoreCreateView.vue";
 import ChoreEditView from "../views/chores/ChoreEditView.vue";
 import ChoreRecordAiCreateView from "../views/chores/ChoreRecordAiCreateView.vue";
 import ChoreRecordListView from "../views/chores/ChoreRecordListView.vue";
+import ChoreRecordCreateView from "../views/chores/ChoreRecordCreateView.vue";
 import { hasActiveSession } from "../api/session";
 
 const routes: RouteRecordRaw[] = [
@@ -43,6 +44,11 @@ const routes: RouteRecordRaw[] = [
     path: "/chores/records/list",
     name: "chores-records-list",
     component: ChoreRecordListView
+  },
+  {
+    path: "/chores/records/create",
+    name: "chores-records-create",
+    component: ChoreRecordCreateView
   },
   {
     path: "/chores/records",

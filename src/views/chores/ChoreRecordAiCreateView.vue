@@ -219,6 +219,7 @@ onMounted(() => {
           <n-space>
             <n-button type="default" @click="router.push('/chores/list')">家务类型列表</n-button>
             <n-button type="default" @click="router.push('/chores/records/list')">家务记录列表</n-button>
+            <n-button type="default" @click="router.push('/chores/records/create')">手动创建</n-button>
           </n-space>
           <n-input
             v-model:value="text"

@@ -408,7 +408,10 @@ onMounted(() => {
             </span>
           </n-space>
           <n-space>
-            <n-button type="primary" @click="router.push('/chores/records')">新建记录</n-button>
+            <n-button type="primary" @click="router.push('/chores/records')">一句话创建</n-button>
+            <n-button type="primary" secondary @click="router.push('/chores/records/create')">
+              手动创建
+            </n-button>
           </n-space>
           <n-data-table
             remote
