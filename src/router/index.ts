@@ -8,6 +8,9 @@ import ChoreEditView from "../views/chores/ChoreEditView.vue";
 import ChoreRecordAiCreateView from "../views/chores/ChoreRecordAiCreateView.vue";
 import ChoreRecordListView from "../views/chores/ChoreRecordListView.vue";
 import ChoreRecordCreateView from "../views/chores/ChoreRecordCreateView.vue";
+import RecipeManageView from "../views/recipes/RecipeManageView.vue";
+import RecipeFormView from "../views/recipes/RecipeFormView.vue";
+import IngredientListView from "../views/recipes/IngredientListView.vue";
 import { hasActiveSession } from "../api/session";
 
 const routes: RouteRecordRaw[] = [
@@ -54,6 +57,26 @@ const routes: RouteRecordRaw[] = [
     path: "/chores/records",
     name: "chores-records",
     component: ChoreRecordAiCreateView
+  },
+  {
+    path: "/recipes",
+    name: "recipes",
+    component: RecipeManageView
+  },
+  {
+    path: "/recipes/create",
+    name: "recipes-create",
+    component: RecipeFormView
+  },
+  {
+    path: "/recipes/:id/edit",
+    name: "recipes-edit",
+    component: RecipeFormView
+  },
+  {
+    path: "/recipes/ingredients",
+    name: "recipes-ingredients",
+    component: IngredientListView
   }
 ];
 
@@ -62,7 +85,7 @@ const router = createRouter({
   routes
 });
 
-const PROTECTED_PATH_PREFIXES = ["/tools", "/chores"];
+const PROTECTED_PATH_PREFIXES = ["/tools", "/chores", "/recipes"];
 
 router.beforeEach((to) => {
   const isLoggedIn = hasActiveSession();

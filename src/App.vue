@@ -17,6 +17,7 @@ const route = useRoute();
 const router = useRouter();
 const isLoginPage = computed(() => route.path === "/login");
 const isToolsPage = computed(() => route.path === "/tools");
+const isRecipesPage = computed(() => route.path.startsWith("/recipes"));
 const isChoresPage = computed(() => route.path.startsWith("/chores/records"));
 const isLoggedIn = ref(hasActiveSession());
 
@@ -50,6 +51,9 @@ watch(
           <n-space>
             <n-button :type="isToolsPage ? 'primary' : 'default'" @click="go('/tools')">
               功能页
+            </n-button>
+            <n-button :type="isRecipesPage ? 'primary' : 'default'" @click="go('/recipes')">
+              食谱管理
             </n-button>
             <n-button :type="isChoresPage ? 'primary' : 'default'" @click="go('/chores/records')">
               家务管理
