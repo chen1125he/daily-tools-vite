@@ -99,10 +99,17 @@ export interface ChoreRecordCreateResult extends ChoreRecord {
   message?: string;
 }
 
+/** AI 解析较慢，避免沿用 http 默认 10s 超时 */
+const CHORE_PARSE_FROM_TEXT_TIMEOUT_MS = 30_000;
+
 export const createChoreRecord = async (
   payload: ChoreRecordCreatePayload
 ): Promise<ChoreRecordCreateResult> => {
-  return await http.post<ChoreRecordCreateResult, ChoreRecordCreateResult>("/v1/chore_records/parse_from_text", payload);
+  return await http.post<ChoreRecordCreateResult, ChoreRecordCreateResult>(
+    "/v1/chore_records/parse_from_text",
+    payload,
+    { timeout: CHORE_PARSE_FROM_TEXT_TIMEOUT_MS }
+  );
 };
 
 export interface UpdateChoreRecordPayload {

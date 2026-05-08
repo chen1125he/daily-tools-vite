@@ -10,6 +10,7 @@ import ChoreRecordListView from "../views/chores/ChoreRecordListView.vue";
 import ChoreRecordCreateView from "../views/chores/ChoreRecordCreateView.vue";
 import RecipeManageView from "../views/recipes/RecipeManageView.vue";
 import RecipeFormView from "../views/recipes/RecipeFormView.vue";
+import RecipeParseFromTextView from "../views/recipes/RecipeParseFromTextView.vue";
 import IngredientListView from "../views/recipes/IngredientListView.vue";
 import { hasActiveSession } from "../api/session";
 
@@ -67,6 +68,11 @@ const routes: RouteRecordRaw[] = [
     path: "/recipes/create",
     name: "recipes-create",
     component: RecipeFormView
+  },
+  {
+    path: "/recipes/parse",
+    name: "recipes-parse",
+    component: RecipeParseFromTextView
   },
   {
     path: "/recipes/:id/edit",

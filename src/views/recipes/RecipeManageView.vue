@@ -170,6 +170,7 @@ onMounted(() => {
             <n-space>
               <n-button type="default" @click="router.push('/tools')">返回功能页</n-button>
               <n-button type="primary" @click="router.push('/recipes/create')">新建食谱</n-button>
+              <n-button type="default" @click="router.push('/recipes/parse')">AI 识别菜谱</n-button>
               <n-button type="default" @click="router.push('/recipes/ingredients')">食材管理</n-button>
             </n-space>
           </n-space>

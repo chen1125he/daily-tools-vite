@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { NButton, NCard, NSpace } from "naive-ui";
-import VditorDemo from "../components/VditorDemo.vue";
+import VditorEditor from "../components/VditorEditor.vue";
 
 const router = useRouter();
 
@@ -40,7 +40,7 @@ Vditor 的 **IR / 所见即所得** 模式，会在编辑区里直接显示格�
 
     <n-card title="Markdown 编辑器体验（Vditor，Typora-like）" class="demo-card">
       <n-space vertical size="large">
-        <VditorDemo v-model="vditorMd" mode="ir" :min-height="360" />
+        <VditorEditor v-model="vditorMd" mode="ir" :min-height="360" />
         <div class="value-preview">
           <div class="value-preview__title">当前内容（v-model 同步）</div>
           <pre class="value-preview__pre">{{ vditorMd }}</pre>

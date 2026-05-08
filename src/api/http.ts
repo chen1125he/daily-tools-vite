@@ -5,9 +5,10 @@ import { clearAuthSession, getAccessToken, isAccessTokenValid, isRefreshTokenVal
 
 export type { ApiResponse } from "./apiResponse";
 
+/** 普通接口默认超时（毫秒）。耗时任务请在单次请求里传入更大的 `timeout`。 */
 const http = axios.create({
   baseURL: "/api",
-  timeout: 10000
+  timeout: 10_000
 });
 
 function isPublicAuthPath(config: InternalAxiosRequestConfig): boolean {

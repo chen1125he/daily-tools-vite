@@ -3,6 +3,9 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import Vditor from "vditor";
 import "vditor/dist/index.css";
 
+/** 基于 Vditor 的 Markdown 编辑器，支持 v-model（内容为 Markdown 字符串） */
+defineOptions({ name: "VditorEditor" });
+
 const props = withDefaults(
   defineProps<{
     modelValue: string;

@@ -25,7 +25,7 @@ import {
   type RecipeIngredientAttribute,
   type RecipeIngredientRole
 } from "../../api/modules/recipes";
-import VditorDemo from "../../components/VditorDemo.vue";
+import VditorEditor from "../../components/VditorEditor.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -319,7 +319,7 @@ onMounted(() => {
                   <n-input v-model:value="formModel.title" placeholder="例如：番茄炒蛋" maxlength="200" show-count />
                 </n-form-item>
                 <n-form-item label="备菜说明">
-                  <VditorDemo
+                  <VditorEditor
                     :key="`${vditorSessionKey}-prep`"
                     v-model="formModel.prep_description"
                     mode="ir"
@@ -327,7 +327,7 @@ onMounted(() => {
                   />
                 </n-form-item>
                 <n-form-item label="烹饪说明">
-                  <VditorDemo
+                  <VditorEditor
                     :key="`${vditorSessionKey}-cook`"
                     v-model="formModel.cook_description"
                     mode="ir"

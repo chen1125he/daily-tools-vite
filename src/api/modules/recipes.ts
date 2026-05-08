@@ -82,6 +82,20 @@ export const createRecipe = async (payload: RecipePayload): Promise<Recipe> => {
   return await http.post<Recipe, Recipe>("/v1/recipes", { recipe: payload });
 };
 
+/** 一键解析菜谱全文并创建食谱（服务端 AI）；成功返回新建 Recipe */
+export interface ParseRecipeFromTextPayload {
+  text: string;
+}
+
+/** AI 解析较慢，单独放宽超时，避免服务端已成功而前端 10s 默认超时先失败 */
+const PARSE_RECIPE_FROM_TEXT_TIMEOUT_MS = 60_000;
+
+export const parseRecipeFromText = async (payload: ParseRecipeFromTextPayload): Promise<Recipe> => {
+  return await http.post<Recipe, Recipe>("/v1/recipes/parse_from_text", payload, {
+    timeout: PARSE_RECIPE_FROM_TEXT_TIMEOUT_MS
+  });
+};
+
 export const updateRecipe = async (id: number, payload: Partial<RecipePayload>): Promise<Recipe> => {
   return await http.patch<Recipe, Recipe>(`/v1/recipes/${id}`, { recipe: payload });
 };
