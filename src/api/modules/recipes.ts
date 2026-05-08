@@ -6,6 +6,7 @@ export type RecipeIngredientRole = "main" | "side" | "condiment";
 export interface RecipeNestedIngredient {
   id: number;
   name: string;
+  search_keywords?: string | null;
   created_at: string;
   updated_at: string;
 }

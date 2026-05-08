@@ -4,6 +4,7 @@ import http from "../http";
 export interface Ingredient {
   id: number;
   name: string;
+  search_keywords?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +28,7 @@ export interface ListIngredientsParams {
 
 export interface IngredientWritePayload {
   name: string;
+  search_keywords?: string | null;
 }
 
 export const listIngredients = async (

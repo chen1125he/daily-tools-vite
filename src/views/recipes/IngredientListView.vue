@@ -47,7 +47,7 @@ const modalVisible = ref(false);
 const saving = ref(false);
 const editingId = ref<number | null>(null);
 const formRef = ref<InstanceType<typeof NForm> | null>(null);
-const formModel = reactive({ name: "" });
+const formModel = reactive({ name: "", search_keywords: "" });
 
 const formRules: FormRules = {
   name: [
@@ -86,6 +86,12 @@ const columns: DataTableColumns<Ingredient> = [
     title: "名称",
     key: "name",
     ellipsis: { tooltip: true }
+  },
+  {
+    title: "别名（检索）",
+    key: "search_keywords",
+    ellipsis: { tooltip: true },
+    render: (row) => row.search_keywords?.trim() || "—"
   },
   {
     title: "创建时间",
@@ -157,12 +163,14 @@ const fetchList = async () => {
 const openCreate = () => {
   editingId.value = null;
   formModel.name = "";
+  formModel.search_keywords = "";
   modalVisible.value = true;
 };
 
 const openEdit = (row: Ingredient) => {
   editingId.value = row.id;
   formModel.name = row.name;
+  formModel.search_keywords = row.search_keywords ?? "";
   modalVisible.value = true;
 };
 
@@ -178,12 +186,13 @@ const handleSave = async () => {
   }
   saving.value = true;
   const name = formModel.name.trim();
+  const search_keywords = formModel.search_keywords.trim() || null;
   try {
     if (editingId.value == null) {
-      await createIngredient({ name });
+      await createIngredient({ name, search_keywords });
       message.success("食材已创建");
     } else {
-      await updateIngredient(editingId.value, { name });
+      await updateIngredient(editingId.value, { name, search_keywords });
       message.success("食材已更新");
     }
     modalVisible.value = false;
@@ -231,7 +240,7 @@ onMounted(() => {
             :loading="loading"
             :pagination="pagination"
             :bordered="false"
-            :scroll-x="560"
+            :scroll-x="720"
           />
         </n-space>
       </n-card>
@@ -241,11 +250,21 @@ onMounted(() => {
       v-model:show="modalVisible"
       preset="card"
       :title="editingId == null ? '新建食材' : '编辑食材'"
-      style="width: 420px"
+      style="width: 480px"
     >
       <n-form ref="formRef" :model="formModel" :rules="formRules" label-placement="top">
         <n-form-item path="name" label="名称">
           <n-input v-model:value="formModel.name" placeholder="例如：番茄" maxlength="120" show-count />
+        </n-form-item>
+        <n-form-item path="search_keywords" label="别名（检索关键词）">
+          <n-input
+            v-model:value="formModel.search_keywords"
+            type="textarea"
+            placeholder="可选；多个别名可用逗号、顿号或空格分隔，便于搜索匹配"
+            :autosize="{ minRows: 2, maxRows: 5 }"
+            maxlength="500"
+            show-count
+          />
         </n-form-item>
         <n-space justify="end">
           <n-button @click="closeModal">取消</n-button>
