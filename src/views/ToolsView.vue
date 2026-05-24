@@ -33,6 +33,7 @@ Vditor 的 **IR / 所见即所得** 模式，会在编辑区里直接显示格�
       <n-space vertical>
         <p>这里是功能入口页，你可以从这里进入具体业务模块。</p>
         <n-button type="default" @click="router.push('/recipes')">食谱管理</n-button>
+        <n-button type="default" @click="router.push('/menus')">菜单管理</n-button>
         <n-button type="default" @click="router.push('/chores/records')">家务记录管理</n-button>
         <n-button type="default" @click="router.push('/login')">返回登录</n-button>
       </n-space>

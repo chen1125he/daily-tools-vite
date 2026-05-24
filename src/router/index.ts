@@ -13,6 +13,9 @@ import RecipeDetailView from "../views/recipes/RecipeDetailView.vue";
 import RecipeFormView from "../views/recipes/RecipeFormView.vue";
 import RecipeParseFromTextView from "../views/recipes/RecipeParseFromTextView.vue";
 import IngredientListView from "../views/recipes/IngredientListView.vue";
+import MenuManageView from "../views/menus/MenuManageView.vue";
+import MenuDetailView from "../views/menus/MenuDetailView.vue";
+import MenuFormView from "../views/menus/MenuFormView.vue";
 import { hasActiveSession } from "../api/session";
 
 const routes: RouteRecordRaw[] = [
@@ -89,6 +92,26 @@ const routes: RouteRecordRaw[] = [
     path: "/recipes/ingredients",
     name: "recipes-ingredients",
     component: IngredientListView
+  },
+  {
+    path: "/menus",
+    name: "menus",
+    component: MenuManageView
+  },
+  {
+    path: "/menus/create",
+    name: "menus-create",
+    component: MenuFormView
+  },
+  {
+    path: "/menus/:id",
+    name: "menus-detail",
+    component: MenuDetailView
+  },
+  {
+    path: "/menus/:id/edit",
+    name: "menus-edit",
+    component: MenuFormView
   }
 ];
 
@@ -97,7 +120,7 @@ const router = createRouter({
   routes
 });
 
-const PROTECTED_PATH_PREFIXES = ["/tools", "/chores", "/recipes"];
+const PROTECTED_PATH_PREFIXES = ["/tools", "/chores", "/recipes", "/menus"];
 
 router.beforeEach((to) => {
   const isLoggedIn = hasActiveSession();

@@ -17,7 +17,7 @@ const route = useRoute();
 const router = useRouter();
 const isLoginPage = computed(() => route.path === "/login");
 const isToolsPage = computed(() => route.path === "/tools");
-const isRecipesPage = computed(() => route.path.startsWith("/recipes"));
+const isRecipesPage = computed(() => route.path.startsWith("/recipes") || route.path.startsWith("/menus"));
 const isChoresPage = computed(() => route.path.startsWith("/chores/records"));
 const isLoggedIn = ref(hasActiveSession());
 
