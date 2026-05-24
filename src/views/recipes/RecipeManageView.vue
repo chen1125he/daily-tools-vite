@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from "axios";
-import { NButton, NCard, NDataTable, NPopconfirm, NSpace, useMessage, type DataTableColumns } from "naive-ui";
+import { NButton, NCard, NDataTable, NInput, NPopconfirm, NSpace, useMessage, type DataTableColumns } from "naive-ui";
 import { h, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { deleteRecipe, listRecipes, type Recipe } from "../../api/modules/recipes";
@@ -39,6 +39,10 @@ function ingredientsSummary(recipe: Recipe): string {
 const loading = ref(false);
 const recipes = ref<Recipe[]>([]);
 const deletingId = ref<number | null>(null);
+
+const filters = reactive({
+  q: ""
+});
 
 const pagination = reactive({
   page: 1,
@@ -147,9 +151,11 @@ const columns: DataTableColumns<Recipe> = [
 const fetchRecipes = async () => {
   loading.value = true;
   try {
+    const q = filters.q.trim();
     const res = await listRecipes({
       page: pagination.page,
-      limit: pagination.pageSize
+      limit: pagination.pageSize,
+      q: q || undefined
     });
     recipes.value = res.items;
     pagination.itemCount = res.meta.total_count;
@@ -159,6 +165,17 @@ const fetchRecipes = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const handleSearch = () => {
+  pagination.page = 1;
+  void fetchRecipes();
+};
+
+const handleResetFilters = () => {
+  filters.q = "";
+  pagination.page = 1;
+  void fetchRecipes();
 };
 
 const handleDelete = async (recipe: Recipe) => {
@@ -193,6 +210,17 @@ onMounted(() => {
               <n-button type="default" @click="router.push('/menus')">菜单管理</n-button>
             </n-space>
           </n-space>
+          <n-space wrap align="center" class="filters">
+            <n-input
+              v-model:value="filters.q"
+              placeholder="搜索标题"
+              clearable
+              style="width: 220px"
+              @keyup.enter="handleSearch"
+            />
+            <n-button type="primary" @click="handleSearch">查询</n-button>
+            <n-button @click="handleResetFilters">重置</n-button>
+          </n-space>
           <n-data-table
             remote
             :columns="columns"
@@ -220,6 +248,10 @@ onMounted(() => {
 }
 
 .content-stack {
+  width: 100%;
+}
+
+.filters {
   width: 100%;
 }
 </style>

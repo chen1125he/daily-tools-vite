@@ -50,6 +50,7 @@ export interface RecipesListResponse {
 export interface ListRecipesParams {
   page?: number;
   limit?: number;
+  q?: string;
 }
 
 /** Rails nested attributes；也可用键名 `recipe_ingredients` 提交 */
