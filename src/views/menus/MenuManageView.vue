@@ -5,16 +5,27 @@ import {
   NCard,
   NDataTable,
   NDatePicker,
+  NForm,
+  NFormItem,
+  NInputNumber,
+  NModal,
   NPopconfirm,
   NSelect,
   NSpace,
   useMessage,
   type DataTableColumns,
+  type FormRules,
   type SelectOption
 } from "naive-ui";
 import { h, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { deleteMenu, listMenus, type MealType, type Menu } from "../../api/modules/menus";
+import {
+  deleteMenu,
+  generateMenus,
+  listMenus,
+  type MealType,
+  type Menu
+} from "../../api/modules/menus";
 
 const router = useRouter();
 const message = useMessage();
@@ -84,6 +95,28 @@ function recipesSummary(menu: Menu): string {
 const loading = ref(false);
 const menus = ref<Menu[]>([]);
 const deletingId = ref<number | null>(null);
+
+const generateModalVisible = ref(false);
+const generating = ref(false);
+const generateFormRef = ref<InstanceType<typeof NForm> | null>(null);
+const generateFormModel = reactive({ days: 7 });
+const generateFormRules: FormRules = {
+  days: [
+    {
+      required: true,
+      type: "number",
+      message: "请填写规划天数",
+      trigger: ["blur", "change"]
+    },
+    {
+      type: "number",
+      min: 1,
+      max: 14,
+      message: "天数须为 1～14 的正整数",
+      trigger: ["blur", "change"]
+    }
+  ]
+};
 
 const filters = reactive({
   meal_type: null as MealType | null,
@@ -227,6 +260,37 @@ const handleDelete = async (menu: Menu) => {
   }
 };
 
+const openGenerateModal = () => {
+  generateFormModel.days = 7;
+  generateModalVisible.value = true;
+};
+
+const closeGenerateModal = () => {
+  if (!generating.value) {
+    generateModalVisible.value = false;
+  }
+};
+
+const handleGenerateMenus = async () => {
+  try {
+    await generateFormRef.value?.validate();
+  } catch {
+    return;
+  }
+  generating.value = true;
+  try {
+    await generateMenus({ days: generateFormModel.days });
+    message.success(`已生成未来 ${generateFormModel.days} 天的午/晚餐菜单`);
+    generateModalVisible.value = false;
+    pagination.page = 1;
+    await fetchMenus();
+  } catch (error) {
+    message.error(apiErrorMessage(error, "AI 生成菜单失败"));
+  } finally {
+    generating.value = false;
+  }
+};
+
 onMounted(() => {
   void fetchMenus();
 });
@@ -240,6 +304,7 @@ onMounted(() => {
           <n-space justify="space-between" wrap>
             <n-space>
               <n-button type="default" @click="router.push('/recipes')">返回食谱管理</n-button>
+              <n-button type="info" :loading="generating" @click="openGenerateModal">AI 生成菜单</n-button>
               <n-button type="primary" @click="router.push('/menus/create')">新建菜单</n-button>
             </n-space>
           </n-space>
@@ -275,6 +340,40 @@ onMounted(() => {
         </n-space>
       </n-card>
     </div>
+
+    <n-modal
+      v-model:show="generateModalVisible"
+      preset="card"
+      title="AI 生成菜单"
+      style="width: 480px"
+      :mask-closable="!generating"
+      :close-on-esc="!generating"
+    >
+      <n-form
+        ref="generateFormRef"
+        :model="generateFormModel"
+        :rules="generateFormRules"
+        label-placement="top"
+      >
+        <n-form-item path="days" label="规划天数">
+          <n-input-number
+            v-model:value="generateFormModel.days"
+            :min="1"
+            :max="14"
+            :precision="0"
+            placeholder="1～14"
+            style="width: 100%"
+          />
+        </n-form-item>
+        <p class="generate-hint">
+          从当天起生成午、晚餐（午餐 2 道、晚餐 3 道），仅使用你已有的食谱；同日期同餐次若已有菜单将被覆盖。生成过程可能较慢，请勿重复提交。
+        </p>
+        <n-space justify="end">
+          <n-button :disabled="generating" @click="closeGenerateModal">取消</n-button>
+          <n-button type="primary" :loading="generating" @click="handleGenerateMenus">开始生成</n-button>
+        </n-space>
+      </n-form>
+    </n-modal>
   </main>
 </template>
 
@@ -295,5 +394,12 @@ onMounted(() => {
 
 .filters {
   width: 100%;
+}
+
+.generate-hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--n-text-color-3);
 }
 </style>

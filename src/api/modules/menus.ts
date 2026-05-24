@@ -60,3 +60,17 @@ export const updateMenu = async (id: number, payload: Partial<MenuPayload>): Pro
 export const deleteMenu = async (id: number): Promise<Menu> => {
   return await http.delete<Menu, Menu>(`/v1/menus/${id}`);
 };
+
+export interface GenerateMenusPayload {
+  days: number;
+}
+
+/** AI 生成较慢，单独放宽超时，避免服务端已成功而前端 10s 默认超时先失败 */
+const GENERATE_MENUS_TIMEOUT_MS = 120_000;
+
+/** AI 生成未来若干天午/晚餐菜单；成功时 data 为 null */
+export const generateMenus = async (payload: GenerateMenusPayload): Promise<null> => {
+  return await http.post<null, null>("/v1/menus/generate", payload, {
+    timeout: GENERATE_MENUS_TIMEOUT_MS
+  });
+};
