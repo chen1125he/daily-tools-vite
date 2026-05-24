@@ -30,6 +30,7 @@ export interface Recipe {
   nutrition: string | null;
   source_text: string | null;
   full_recipe_text: string | null;
+  in_ai_plan: boolean;
   recipe_ingredients: RecipeIngredient[];
   created_at: string;
   updated_at: string;
@@ -70,6 +71,7 @@ export interface RecipePayload {
   cook_minutes?: number | null;
   nutrition?: string | null;
   source_text?: string | null;
+  in_ai_plan?: boolean;
   recipe_ingredients_attributes?: RecipeIngredientAttribute[];
 }
 

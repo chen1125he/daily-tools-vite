@@ -10,6 +10,7 @@ import {
   NSelect,
   NSpace,
   NSpin,
+  NSwitch,
   useMessage,
   type FormRules,
   type SelectOption
@@ -86,7 +87,8 @@ const formModel = reactive({
   prep_description: "",
   cook_description: "",
   prep_minutes: null as number | null,
-  cook_minutes: null as number | null
+  cook_minutes: null as number | null,
+  in_ai_plan: true
 });
 
 const formRules: FormRules = {
@@ -114,6 +116,7 @@ function resetForm() {
   formModel.cook_description = "";
   formModel.prep_minutes = null;
   formModel.cook_minutes = null;
+  formModel.in_ai_plan = true;
   ingredientLines.value = [];
   removedRows.value = [];
   editingRecipeId.value = null;
@@ -153,6 +156,7 @@ const loadRecipeForRoute = async () => {
     formModel.cook_description = recipe.cook_description ?? "";
     formModel.prep_minutes = recipe.prep_minutes;
     formModel.cook_minutes = recipe.cook_minutes;
+    formModel.in_ai_plan = recipe.in_ai_plan ?? true;
     removedRows.value = [];
     ingredientLines.value = (recipe.recipe_ingredients ?? []).map((ri) => ({
       key: nextLineKey(),
@@ -268,6 +272,7 @@ function buildPayload() {
     cook_description: formModel.cook_description.trim() || null,
     prep_minutes: formModel.prep_minutes,
     cook_minutes: formModel.cook_minutes,
+    in_ai_plan: formModel.in_ai_plan,
     ...(nested ? { recipe_ingredients_attributes: nested } : {})
   };
 }
@@ -317,6 +322,12 @@ onMounted(() => {
               <n-form ref="formRef" :model="formModel" :rules="formRules" label-placement="top">
                 <n-form-item path="title" label="标题">
                   <n-input v-model:value="formModel.title" placeholder="例如：番茄炒蛋" maxlength="200" show-count />
+                </n-form-item>
+                <n-form-item label="参与 AI 计划">
+                  <n-space align="center" size="small">
+                    <n-switch v-model:value="formModel.in_ai_plan" />
+                    <span class="switch-hint">开启后，使用 AI 做餐饮计划时会纳入此菜谱</span>
+                  </n-space>
                 </n-form-item>
                 <n-form-item label="备菜说明">
                   <VditorEditor
@@ -428,6 +439,11 @@ onMounted(() => {
 
 .section-hint {
   margin: 0 0 12px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.switch-hint {
   font-size: 12px;
   color: rgba(0, 0, 0, 0.55);
 }
