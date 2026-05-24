@@ -92,4 +92,11 @@ watch(
   padding: 20px;
   overflow-y: auto;
 }
+
+@media (max-width: 640px) {
+  .content {
+    padding: 0;
+    border: none;
+  }
+}
 </style>

@@ -61,7 +61,17 @@ const columns: DataTableColumns<Recipe> = [
   {
     title: "标题",
     key: "title",
-    ellipsis: { tooltip: true }
+    ellipsis: { tooltip: true },
+    render: (row) =>
+      h(
+        NButton,
+        {
+          text: true,
+          type: "primary",
+          onClick: () => router.push(`/recipes/${row.id}`)
+        },
+        { default: () => row.title }
+      )
   },
   {
     title: "食材",
@@ -85,13 +95,21 @@ const columns: DataTableColumns<Recipe> = [
   {
     title: "操作",
     key: "actions",
-    width: 180,
+    width: 240,
     render: (row) =>
       h(
         NSpace,
         { size: "small" },
         {
           default: () => [
+            h(
+              NButton,
+              {
+                size: "small",
+                onClick: () => router.push(`/recipes/${row.id}`)
+              },
+              { default: () => "详情" }
+            ),
             h(
               NButton,
               {

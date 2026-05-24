@@ -29,6 +29,7 @@ export interface Recipe {
   cook_minutes: number | null;
   nutrition: string | null;
   source_text: string | null;
+  full_recipe_text: string | null;
   recipe_ingredients: RecipeIngredient[];
   created_at: string;
   updated_at: string;
