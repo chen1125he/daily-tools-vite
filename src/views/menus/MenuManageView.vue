@@ -7,6 +7,7 @@ import {
   NDatePicker,
   NForm,
   NFormItem,
+  NInput,
   NInputNumber,
   NModal,
   NPopconfirm,
@@ -99,8 +100,24 @@ const deletingId = ref<number | null>(null);
 const generateModalVisible = ref(false);
 const generating = ref(false);
 const generateFormRef = ref<InstanceType<typeof NForm> | null>(null);
-const generateFormModel = reactive({ days: 7 });
+const generateFormModel = reactive({
+  days: 1,
+  start_date: null as number | null,
+  custom_prompt: ""
+});
 const generateFormRules: FormRules = {
+  start_date: [
+    {
+      required: true,
+      trigger: ["blur", "change"],
+      validator: (_rule, value: number | null) => {
+        if (value == null || !Number.isFinite(value)) {
+          return new Error("请选择开始日期");
+        }
+        return true;
+      }
+    }
+  ],
   days: [
     {
       required: true,
@@ -261,7 +278,9 @@ const handleDelete = async (menu: Menu) => {
 };
 
 const openGenerateModal = () => {
-  generateFormModel.days = 7;
+  generateFormModel.days = 1;
+  generateFormModel.start_date = startOfDayTimestamp(Date.now());
+  generateFormModel.custom_prompt = "";
   generateModalVisible.value = true;
 };
 
@@ -278,9 +297,17 @@ const handleGenerateMenus = async () => {
     return;
   }
   generating.value = true;
+  const startDateIso = toIsoDateString(generateFormModel.start_date!);
+  const customPrompt = generateFormModel.custom_prompt.trim();
   try {
-    await generateMenus({ days: generateFormModel.days });
-    message.success(`已生成未来 ${generateFormModel.days} 天的午/晚餐菜单`);
+    await generateMenus({
+      days: generateFormModel.days,
+      start_date: startDateIso,
+      ...(customPrompt ? { custom_prompt: customPrompt } : {})
+    });
+    message.success(
+      `已从 ${formatDateOnly(startDateIso)} 起生成 ${generateFormModel.days} 天的午/晚餐菜单`
+    );
     generateModalVisible.value = false;
     pagination.page = 1;
     await fetchMenus();
@@ -345,7 +372,7 @@ onMounted(() => {
       v-model:show="generateModalVisible"
       preset="card"
       title="AI 生成菜单"
-      style="width: 480px"
+      style="width: 520px"
       :mask-closable="!generating"
       :close-on-esc="!generating"
     >
@@ -355,6 +382,14 @@ onMounted(() => {
         :rules="generateFormRules"
         label-placement="top"
       >
+        <n-form-item path="start_date" label="开始日期">
+          <n-date-picker
+            v-model:value="generateFormModel.start_date"
+            type="date"
+            clearable
+            style="width: 100%"
+          />
+        </n-form-item>
         <n-form-item path="days" label="规划天数">
           <n-input-number
             v-model:value="generateFormModel.days"
@@ -365,8 +400,16 @@ onMounted(() => {
             style="width: 100%"
           />
         </n-form-item>
+        <n-form-item path="custom_prompt" label="额外要求">
+          <n-input
+            v-model:value="generateFormModel.custom_prompt"
+            type="textarea"
+            placeholder="例如：本周少吃辣、晚餐尽量清淡、多安排汤类……"
+            :autosize="{ minRows: 2, maxRows: 5 }"
+          />
+        </n-form-item>
         <p class="generate-hint">
-          从当天起生成午、晚餐（午餐 2 道、晚餐 3 道），仅使用你已有的食谱；同日期同餐次若已有菜单将被覆盖。生成过程可能较慢，请勿重复提交。
+          从所选日期起连续生成午、晚餐（午餐 2 道、晚餐 3 道），仅使用你已有的食谱；同日期同餐次若已有菜单将被覆盖。额外要求会一并交给 AI 参考。生成过程可能较慢，请勿重复提交。
         </p>
         <n-space justify="end">
           <n-button :disabled="generating" @click="closeGenerateModal">取消</n-button>
