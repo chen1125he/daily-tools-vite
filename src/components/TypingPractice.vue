@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { NButton, NInput, NSlider, NSpace } from "naive-ui";
+import { NButton, NInput, NSlider, NSpace, NTooltip } from "naive-ui";
+import { lookupTypingWord, type TypingWord } from "../api/modules/typing";
 
 const props = withDefaults(
   defineProps<{
@@ -12,6 +13,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   mistake: [payload: { character: string; wubiCode?: string; index: number }];
+  wubiHint: [payload: { character: string; wubiCode: string; wubiRoots: string[] }];
 }>();
 
 const typedText = defineModel<string>({ default: "" });
@@ -60,6 +62,15 @@ const inputRef = ref<InstanceType<typeof NInput> | null>(null);
 const volume = ref(readStoredVolume());
 const audioPools = new Map<string, HTMLAudioElement[]>();
 const poolIndexes = new Map<string, number>();
+type WubiHint = {
+  code: string;
+  roots: string[];
+};
+
+const wubiCache = new Map<string, WubiHint>();
+const wubiInflight = new Map<string, Promise<WubiHint | null>>();
+const hintByIndex = ref<Record<number, WubiHint>>({});
+const shownHintIndex = ref<number | null>(null);
 let nativeInput: HTMLInputElement | HTMLTextAreaElement | null = null;
 let lastKeySoundAt = 0;
 
@@ -79,6 +90,54 @@ const chars = computed(() => {
     return { char, status };
   });
 });
+
+const charHint = (index: number) => hintByIndex.value[index] ?? null;
+
+const isHintVisible = (index: number) => shownHintIndex.value === index && Boolean(charHint(index));
+
+const clearHints = () => {
+  hintByIndex.value = {};
+  shownHintIndex.value = null;
+};
+
+const hintFromWord = (word: TypingWord): WubiHint | null => {
+  const code = word.wubi_code?.trim().toLowerCase() ?? "";
+  if (!code) return null;
+  const roots = Array.isArray(word.wubi_roots)
+    ? word.wubi_roots.map((item) => item.trim()).filter(Boolean)
+    : [];
+  return { code, roots };
+};
+
+const fetchWubiHint = (character: string) => {
+  const cached = wubiCache.get(character);
+  if (cached) return Promise.resolve(cached);
+  const pending = wubiInflight.get(character);
+  if (pending) return pending;
+  const request = lookupTypingWord(character)
+    .then((word) => {
+      const hint = hintFromWord(word);
+      if (hint) wubiCache.set(character, hint);
+      return hint;
+    })
+    .catch(() => null)
+    .finally(() => {
+      wubiInflight.delete(character);
+    });
+  wubiInflight.set(character, request);
+  return request;
+};
+
+const requestHint = async (index: number, character: string) => {
+  if (!HANZI_RE.test(character)) return;
+  if (!hintByIndex.value[index]) {
+    const hint = await fetchWubiHint(character);
+    if (!hint) return;
+    if (shownHintIndex.value !== index) return;
+    hintByIndex.value = { ...hintByIndex.value, [index]: hint };
+    emit("wubiHint", { character, wubiCode: hint.code, wubiRoots: hint.roots });
+  }
+};
 
 const isFinished = computed(() => {
   const target = [...props.targetText];
@@ -266,6 +325,7 @@ watch(
     typedText.value = "";
     committedText.value = "";
     wubiBuffer.value = "";
+    clearHints();
   }
 );
 
@@ -284,9 +344,23 @@ const focusInput = async () => {
   inputRef.value?.focus();
 };
 
+const onCharClick = (index: number, character: string) => {
+  if (!HANZI_RE.test(character)) return;
+  if (shownHintIndex.value === index) {
+    shownHintIndex.value = null;
+    void focusInput();
+    return;
+  }
+  shownHintIndex.value = index;
+  void requestHint(index, character).finally(() => {
+    void focusInput();
+  });
+};
+
 const resetTyped = async () => {
   typedText.value = "";
   committedText.value = "";
+  clearHints();
   await focusInput();
 };
 
@@ -327,14 +401,32 @@ defineExpose({ focusInput, resetTyped });
 
 <template>
   <n-space vertical size="large">
-    <p class="hint">对照上方文字输入。正确为绿色，错误为红色，当前字符有下划线。</p>
+    <p class="hint">对照上方文字输入。正确为绿色，错误为红色，当前字符有下划线。点击汉字可查看五笔编码和字根。</p>
     <div class="target" aria-label="需要输入的文字">
-      <span
+      <n-tooltip
         v-for="(item, index) in chars"
         :key="`${item.char}-${index}`"
-        class="target__char"
-        :class="[`is-${item.status}`, item.char === '\n' ? 'is-newline' : '']"
-      >{{ item.char === " " ? "\u00A0" : item.char === "\n" ? "" : item.char }}</span>
+        :show="isHintVisible(index)"
+        trigger="manual"
+        placement="top"
+      >
+        <template #trigger>
+          <span
+            class="target__char"
+            :class="[
+              `is-${item.status}`,
+              item.char === '\n' ? 'is-newline' : '',
+              HANZI_RE.test(item.char) ? 'is-clickable' : '',
+              isHintVisible(index) ? 'has-hint' : ''
+            ]"
+            @click.stop="onCharClick(index, item.char)"
+          >{{ item.char === " " ? "\u00A0" : item.char === "\n" ? "" : item.char }}</span>
+        </template>
+        <div v-if="charHint(index)" class="wubi-hint">
+          <div>五笔 {{ charHint(index)?.code }}</div>
+          <div v-if="charHint(index)?.roots.length">字根 {{ charHint(index)?.roots.join(" ") }}</div>
+        </div>
+      </n-tooltip>
     </div>
     <n-input
       ref="inputRef"
@@ -389,6 +481,18 @@ defineExpose({ focusInput, resetTyped });
   min-width: 0.45em;
 }
 
+.target :deep(.n-tooltip-trigger) {
+  display: inline;
+}
+
+.target__char.is-clickable {
+  cursor: pointer;
+}
+
+.target__char.has-hint {
+  box-shadow: inset 0 -2px 0 rgba(32, 128, 240, 0.55);
+}
+
 .target__char.is-newline {
   display: block;
   min-width: 0;
@@ -412,6 +516,14 @@ defineExpose({ focusInput, resetTyped });
 .done {
   color: #18a058;
   font-weight: 600;
+}
+
+.wubi-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.4;
+  font-size: 13px;
 }
 
 .volume-label {

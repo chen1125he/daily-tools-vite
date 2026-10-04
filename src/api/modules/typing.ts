@@ -29,9 +29,15 @@ export interface TypingWord {
   id: number;
   character: string;
   wubi_code: string | null;
+  wubi_roots?: string[] | null;
   created_at: string;
   updated_at: string;
 }
+
+export const formatWubiRoots = (roots: string[] | null | undefined): string => {
+  if (!roots?.length) return "";
+  return roots.filter((item) => item.trim()).join(" ");
+};
 
 export interface TypingErrorMark {
   id: number;
@@ -147,4 +153,12 @@ export const createTypingErrorMark = async (
     `/v1/typing_practices/${practiceId}/error_marks`,
     { typing_error_mark: payload }
   );
+};
+
+/** 实时查 86 版五笔全码；未落库时后端会同步调 AI，可能较慢。 */
+export const lookupTypingWord = async (character: string): Promise<TypingWord> => {
+  return await http.get<TypingWord, TypingWord>("/v1/typing_words/lookup", {
+    params: { character },
+    timeout: 30_000
+  });
 };

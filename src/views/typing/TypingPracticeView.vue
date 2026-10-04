@@ -18,12 +18,14 @@ import {
 import {
   completeTypingPractice,
   createTypingErrorMark,
+  formatWubiRoots,
   getTypingArticle,
   getTypingPractice,
   startTypingPractice,
   type TypingErrorMark,
   type TypingPractice,
-  type TypingPracticeStatus
+  type TypingPracticeStatus,
+  type TypingWord
 } from "../../api/modules/typing";
 import TypingPracticeBoard from "../../components/TypingPractice.vue";
 
@@ -109,6 +111,12 @@ const errorColumns: DataTableColumns<TypingErrorMark> = [
     render: (row) => row.typing_word?.wubi_code ?? "—"
   },
   {
+    title: "字根",
+    key: "wubi_roots",
+    minWidth: 120,
+    render: (row) => formatWubiRoots(row.typing_word?.wubi_roots) || "—"
+  },
+  {
     title: "出错次数",
     key: "mistake_count",
     width: 100,
@@ -116,16 +124,49 @@ const errorColumns: DataTableColumns<TypingErrorMark> = [
   }
 ];
 
+const mergeTypingWord = (prev: TypingWord | undefined, next: TypingWord): TypingWord => {
+  const roots = next.wubi_roots?.length ? next.wubi_roots : prev?.wubi_roots;
+  return {
+    ...prev,
+    ...next,
+    wubi_code: next.wubi_code || prev?.wubi_code || null,
+    wubi_roots: roots ?? next.wubi_roots ?? null
+  };
+};
+
 const upsertLocalErrorMark = (mark: TypingErrorMark) => {
   if (!practice.value) return;
   const marks = [...(practice.value.typing_error_marks ?? [])];
   const index = marks.findIndex((item) => item.id === mark.id);
+  const merged: TypingErrorMark = {
+    ...mark,
+    typing_word: mergeTypingWord(index >= 0 ? marks[index].typing_word : undefined, mark.typing_word)
+  };
   if (index >= 0) {
-    marks[index] = mark;
+    marks[index] = merged;
   } else {
-    marks.push(mark);
+    marks.push(merged);
   }
   practice.value = { ...practice.value, typing_error_marks: marks };
+};
+
+const applyWubiHintToErrorMarks = (payload: { character: string; wubiCode: string; wubiRoots: string[] }) => {
+  if (!practice.value) return;
+  const marks = practice.value.typing_error_marks ?? [];
+  let changed = false;
+  const next = marks.map((mark) => {
+    if (mark.typing_word?.character !== payload.character) return mark;
+    changed = true;
+    return {
+      ...mark,
+      typing_word: mergeTypingWord(mark.typing_word, {
+        ...mark.typing_word,
+        wubi_code: payload.wubiCode,
+        wubi_roots: payload.wubiRoots
+      })
+    };
+  });
+  if (changed) practice.value = { ...practice.value, typing_error_marks: next };
 };
 
 const ensureArticle = async (record: TypingPractice): Promise<TypingPractice> => {
@@ -241,6 +282,7 @@ onUnmounted(() => {
                 v-model="typedBody"
                 :target-text="articleBody"
                 @mistake="handleMistake"
+                @wubi-hint="applyWubiHintToErrorMarks"
               />
               <n-space justify="end">
                 <n-button type="primary" :loading="submitting" :disabled="!typedBody.trim()" @click="handleComplete">
