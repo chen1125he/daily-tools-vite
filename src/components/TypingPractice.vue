@@ -113,10 +113,7 @@ const currentIndex = computed(() => {
   return typedLen >= total ? total - 1 : typedLen;
 });
 
-let lastCenteredLineTop = Number.NaN;
-let resizeObserver: ResizeObserver | null = null;
-
-const scrollCurrentToCenter = () => {
+const ensureCurrentVisible = () => {
   const scroller = targetRef.value;
   const index = currentIndex.value;
   if (!scroller || index == null) return;
@@ -125,12 +122,18 @@ const scrollCurrentToCenter = () => {
   const scrollerRect = scroller.getBoundingClientRect();
   const currentRect = current.getBoundingClientRect();
   const lineTop = currentRect.top - scrollerRect.top + scroller.scrollTop;
-  const nextTop = lineTop - scroller.clientHeight / 2 + currentRect.height / 2;
-  const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
-  const clamped = Math.min(maxScroll, Math.max(0, nextTop));
-  if (Math.abs(lineTop - lastCenteredLineTop) < 2 && Math.abs(scroller.scrollTop - clamped) < 2) return;
-  lastCenteredLineTop = lineTop;
-  scroller.scrollTo({ top: clamped, behavior: "auto" });
+  const lineBottom = lineTop + Math.max(currentRect.height, 1);
+  const pad = 8;
+  if (lineTop < scroller.scrollTop + pad) {
+    scroller.scrollTo({ top: Math.max(0, lineTop - pad), behavior: "auto" });
+    return;
+  }
+  if (lineBottom > scroller.scrollTop + scroller.clientHeight - pad) {
+    scroller.scrollTo({
+      top: lineBottom - scroller.clientHeight + pad,
+      behavior: "auto"
+    });
+  }
 };
 
 const shownHintChar = computed(() =>
@@ -382,7 +385,6 @@ watch(
     typedText.value = "";
     committedText.value = "";
     wubiBuffer.value = "";
-    lastCenteredLineTop = Number.NaN;
     clearHints();
   }
 );
@@ -397,14 +399,11 @@ watch(
   }
 );
 
-watch(
-  currentIndex,
-  () => {
-    void nextTick(() => {
-      requestAnimationFrame(scrollCurrentToCenter);
-    });
-  }
-);
+watch(currentIndex, () => {
+  void nextTick(() => {
+    requestAnimationFrame(ensureCurrentVisible);
+  });
+});
 
 const focusInput = async () => {
   await nextTick();
@@ -454,20 +453,10 @@ onMounted(async () => {
   ensureAllPools();
   await nextTick();
   bindNativeIme();
-  if (targetRef.value && typeof ResizeObserver !== "undefined") {
-    resizeObserver = new ResizeObserver(() => {
-      lastCenteredLineTop = Number.NaN;
-      scrollCurrentToCenter();
-    });
-    resizeObserver.observe(targetRef.value);
-  }
-  requestAnimationFrame(scrollCurrentToCenter);
   void focusInput();
 });
 
 onUnmounted(() => {
-  resizeObserver?.disconnect();
-  resizeObserver = null;
   unbindNativeIme();
   for (const pool of audioPools.values()) {
     for (const audio of pool) {
@@ -486,19 +475,17 @@ defineExpose({ focusInput, resetTyped });
   <n-space vertical size="large">
     <p class="hint">对照上方文字输入。正确为绿色，错误为红色，当前字符有下划线。点击汉字可在下方查看五笔编码和字根。</p>
     <div ref="targetRef" class="target" aria-label="需要输入的文字">
-      <div class="target__inner">
-        <TypingPracticeChunk
-          v-for="(chunk, chunkIndex) in chunks"
-          :key="chunk.start"
-          :chars="chunk.chars"
-          :clickable="chunk.clickable"
-          :start-index="chunk.start"
-          :typed="chunkTyped[chunkIndex] ?? ''"
-          :has-cursor="cursorChunkStart === chunk.start"
-          :hint-index="hintIndexForChunk(chunk.start, chunk.chars.length)"
-          @char-click="onCharClick"
-        />
-      </div>
+      <TypingPracticeChunk
+        v-for="(chunk, chunkIndex) in chunks"
+        :key="chunk.start"
+        :chars="chunk.chars"
+        :clickable="chunk.clickable"
+        :start-index="chunk.start"
+        :typed="chunkTyped[chunkIndex] ?? ''"
+        :has-cursor="cursorChunkStart === chunk.start"
+        :hint-index="hintIndexForChunk(chunk.start, chunk.chars.length)"
+        @char-click="onCharClick"
+      />
     </div>
     <div class="wubi-bar" aria-live="polite">
       <template v-if="shownHintIndex != null">
@@ -554,20 +541,15 @@ defineExpose({ focusInput, resetTyped });
   font-size: 22px;
   line-height: 1.7;
   letter-spacing: 0.02em;
-  max-height: calc(var(--target-line) * 5);
+  max-height: calc(var(--target-line) * 5 + 24px);
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 0 16px;
+  padding: 12px 16px;
   border-radius: 10px;
   border: 1px solid rgba(127, 127, 127, 0.25);
   background: rgba(127, 127, 127, 0.06);
   word-break: break-word;
   scrollbar-gutter: stable;
-}
-
-.target__inner {
-  padding-top: calc(var(--target-line) * 2);
-  padding-bottom: calc(var(--target-line) * 2);
 }
 
 .wubi-bar {
