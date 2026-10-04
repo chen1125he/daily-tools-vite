@@ -35,6 +35,7 @@ Vditor 的 **IR / 所见即所得** 模式，会在编辑区里直接显示格�
         <n-button type="default" @click="router.push('/recipes')">食谱管理</n-button>
         <n-button type="default" @click="router.push('/menus')">菜单管理</n-button>
         <n-button type="default" @click="router.push('/chores/records')">家务记录管理</n-button>
+        <n-button type="default" @click="router.push('/typing')">打字练习</n-button>
         <n-button type="default" @click="router.push('/login')">返回登录</n-button>
       </n-space>
     </n-card>

@@ -19,6 +19,7 @@ const isLoginPage = computed(() => route.path === "/login");
 const isToolsPage = computed(() => route.path === "/tools");
 const isRecipesPage = computed(() => route.path.startsWith("/recipes") || route.path.startsWith("/menus"));
 const isChoresPage = computed(() => route.path.startsWith("/chores/records"));
+const isTypingPage = computed(() => route.path.startsWith("/typing"));
 const isLoggedIn = ref(hasActiveSession());
 
 const go = (path: string) => {
@@ -57,6 +58,9 @@ watch(
             </n-button>
             <n-button :type="isChoresPage ? 'primary' : 'default'" @click="go('/chores/records')">
               家务管理
+            </n-button>
+            <n-button :type="isTypingPage ? 'primary' : 'default'" @click="go('/typing')">
+              打字练习
             </n-button>
             <n-button v-if="isLoggedIn" type="error" ghost @click="handleLogout">退出登录</n-button>
           </n-space>

@@ -16,6 +16,10 @@ import IngredientListView from "../views/recipes/IngredientListView.vue";
 import MenuManageView from "../views/menus/MenuManageView.vue";
 import MenuDetailView from "../views/menus/MenuDetailView.vue";
 import MenuFormView from "../views/menus/MenuFormView.vue";
+import TypingArticleListView from "../views/typing/TypingArticleListView.vue";
+import TypingArticleFormView from "../views/typing/TypingArticleFormView.vue";
+import TypingPracticeListView from "../views/typing/TypingPracticeListView.vue";
+import TypingPracticeView from "../views/typing/TypingPracticeView.vue";
 import { hasActiveSession } from "../api/session";
 
 const routes: RouteRecordRaw[] = [
@@ -112,6 +116,31 @@ const routes: RouteRecordRaw[] = [
     path: "/menus/:id/edit",
     name: "menus-edit",
     component: MenuFormView
+  },
+  {
+    path: "/typing",
+    name: "typing",
+    component: TypingArticleListView
+  },
+  {
+    path: "/typing/articles/create",
+    name: "typing-articles-create",
+    component: TypingArticleFormView
+  },
+  {
+    path: "/typing/articles/:id/edit",
+    name: "typing-articles-edit",
+    component: TypingArticleFormView
+  },
+  {
+    path: "/typing/practices",
+    name: "typing-practices",
+    component: TypingPracticeListView
+  },
+  {
+    path: "/typing/practices/:id",
+    name: "typing-practice-session",
+    component: TypingPracticeView
   }
 ];
 
@@ -120,7 +149,7 @@ const router = createRouter({
   routes
 });
 
-const PROTECTED_PATH_PREFIXES = ["/tools", "/chores", "/recipes", "/menus"];
+const PROTECTED_PATH_PREFIXES = ["/tools", "/chores", "/recipes", "/menus", "/typing"];
 
 router.beforeEach((to) => {
   const isLoggedIn = hasActiveSession();

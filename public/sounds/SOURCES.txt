@@ -1,0 +1,9 @@
+type-mx-blue.mp3
+Source: Freesound 523768, Professor-Syntax
+https://freesound.org/people/Professor-Syntax/sounds/523768/
+License: CC0 (public domain)
+Note: HQ preview of a single MX Blue mechanical key tap.
+
+mx-blue-*.wav
+Pitch/filter variants derived from type-mx-blue.mp3 for different keys
+(enter, punctuation, letter variation).
