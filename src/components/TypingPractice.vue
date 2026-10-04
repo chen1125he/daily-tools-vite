@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { NButton, NInput, NSlider, NSpace, NTooltip } from "naive-ui";
+import { NButton, NInput, NSlider, NSpace } from "naive-ui";
 import { lookupTypingWord, type TypingWord } from "../api/modules/typing";
+import TypingPracticeChunk from "./TypingPracticeChunk.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -40,6 +41,7 @@ const BOTTOM_PUNCT_SHIFT = new Set("<>?".split(""));
 const HOME_PUNCT = new Set(";:'\"".split(""));
 
 const POOL_SIZE = 4;
+const CHUNK_SIZE = 32;
 const VOLUME_STORAGE_KEY = "typing-practice-volume";
 const DEFAULT_VOLUME = 0.28;
 const HANZI_RE = /^[\u4e00-\u9fff]$/;
@@ -59,6 +61,7 @@ const composing = ref(false);
 const committedText = ref(typedText.value);
 const wubiBuffer = ref("");
 const inputRef = ref<InstanceType<typeof NInput> | null>(null);
+const targetRef = ref<HTMLElement | null>(null);
 const volume = ref(readStoredVolume());
 const audioPools = new Map<string, HTMLAudioElement[]>();
 const poolIndexes = new Map<string, number>();
@@ -71,33 +74,83 @@ const wubiCache = new Map<string, WubiHint>();
 const wubiInflight = new Map<string, Promise<WubiHint | null>>();
 const hintByIndex = ref<Record<number, WubiHint>>({});
 const shownHintIndex = ref<number | null>(null);
+const hintLoading = ref(false);
 let nativeInput: HTMLInputElement | HTMLTextAreaElement | null = null;
 let lastKeySoundAt = 0;
 
 const comparisonText = computed(() => (composing.value ? committedText.value : typedText.value));
+const targetChars = computed(() => [...props.targetText]);
+const typedChars = computed(() => [...comparisonText.value]);
 
-const chars = computed(() => {
-  const target = [...props.targetText];
-  const typed = [...comparisonText.value];
-  return target.map((char, index) => {
-    const typedChar = typed[index];
-    let status: "pending" | "current" | "correct" | "wrong" = "pending";
-    if (index < typed.length) {
-      status = typedChar === char ? "correct" : "wrong";
-    } else if (index === typed.length) {
-      status = "current";
-    }
-    return { char, status };
-  });
+const chunks = computed(() => {
+  const chars = targetChars.value;
+  const result: { start: number; chars: string[]; clickable: boolean[] }[] = [];
+  for (let i = 0; i < chars.length; i += CHUNK_SIZE) {
+    const slice = chars.slice(i, i + CHUNK_SIZE);
+    result.push({
+      start: i,
+      chars: slice,
+      clickable: slice.map((char) => HANZI_RE.test(char))
+    });
+  }
+  return result;
 });
 
-const charHint = (index: number) => hintByIndex.value[index] ?? null;
+const chunkTyped = computed(() =>
+  chunks.value.map((chunk) => typedChars.value.slice(chunk.start, chunk.start + chunk.chars.length).join(""))
+);
 
-const isHintVisible = (index: number) => shownHintIndex.value === index && Boolean(charHint(index));
+const cursorChunkStart = computed(() => {
+  const typedLen = typedChars.value.length;
+  if (typedLen >= targetChars.value.length) return null;
+  return Math.floor(typedLen / CHUNK_SIZE) * CHUNK_SIZE;
+});
+
+const currentIndex = computed(() => {
+  const total = targetChars.value.length;
+  if (total === 0) return null;
+  const typedLen = typedChars.value.length;
+  return typedLen >= total ? total - 1 : typedLen;
+});
+
+let lastCenteredLineTop = Number.NaN;
+let resizeObserver: ResizeObserver | null = null;
+
+const scrollCurrentToCenter = () => {
+  const scroller = targetRef.value;
+  const index = currentIndex.value;
+  if (!scroller || index == null) return;
+  const current = scroller.querySelector(`[data-index="${index}"]`) as HTMLElement | null;
+  if (!current) return;
+  const scrollerRect = scroller.getBoundingClientRect();
+  const currentRect = current.getBoundingClientRect();
+  const lineTop = currentRect.top - scrollerRect.top + scroller.scrollTop;
+  const nextTop = lineTop - scroller.clientHeight / 2 + currentRect.height / 2;
+  const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+  const clamped = Math.min(maxScroll, Math.max(0, nextTop));
+  if (Math.abs(lineTop - lastCenteredLineTop) < 2 && Math.abs(scroller.scrollTop - clamped) < 2) return;
+  lastCenteredLineTop = lineTop;
+  scroller.scrollTo({ top: clamped, behavior: "auto" });
+};
+
+const shownHintChar = computed(() =>
+  shownHintIndex.value == null ? "" : (targetChars.value[shownHintIndex.value] ?? "")
+);
+
+const activeHint = computed(() =>
+  shownHintIndex.value == null ? null : (hintByIndex.value[shownHintIndex.value] ?? null)
+);
+
+const hintIndexForChunk = (start: number, length: number) => {
+  const index = shownHintIndex.value;
+  if (index == null || index < start || index >= start + length) return null;
+  return index;
+};
 
 const clearHints = () => {
   hintByIndex.value = {};
   shownHintIndex.value = null;
+  hintLoading.value = false;
 };
 
 const hintFromWord = (word: TypingWord): WubiHint | null => {
@@ -130,25 +183,29 @@ const fetchWubiHint = (character: string) => {
 
 const requestHint = async (index: number, character: string) => {
   if (!HANZI_RE.test(character)) return;
-  if (!hintByIndex.value[index]) {
+  if (hintByIndex.value[index]) return;
+  hintLoading.value = true;
+  try {
     const hint = await fetchWubiHint(character);
-    if (!hint) return;
     if (shownHintIndex.value !== index) return;
+    if (!hint) return;
     hintByIndex.value = { ...hintByIndex.value, [index]: hint };
     emit("wubiHint", { character, wubiCode: hint.code, wubiRoots: hint.roots });
+  } finally {
+    if (shownHintIndex.value === index) hintLoading.value = false;
   }
 };
 
 const isFinished = computed(() => {
-  const target = [...props.targetText];
-  const typed = [...comparisonText.value];
+  const target = targetChars.value;
+  const typed = typedChars.value;
   return target.length > 0 && typed.length >= target.length && typed.every((char, index) => char === target[index]);
 });
 
 const accuracy = computed(() => {
-  const typed = [...comparisonText.value];
+  const typed = typedChars.value;
   if (!typed.length) return 100;
-  const target = [...props.targetText];
+  const target = targetChars.value;
   const compared = Math.min(typed.length, target.length);
   let correct = 0;
   for (let i = 0; i < compared; i += 1) {
@@ -262,11 +319,11 @@ const detectMistakes = (prev: string, next: string) => {
   if (props.disabled) return;
   const prevChars = [...prev];
   const nextChars = [...next];
-  const targetChars = [...props.targetText];
+  const expectedChars = targetChars.value;
   const newlyWrong: number[] = [];
-  const len = Math.min(nextChars.length, targetChars.length);
+  const len = Math.min(nextChars.length, expectedChars.length);
   for (let i = 0; i < len; i += 1) {
-    const expected = targetChars[i];
+    const expected = expectedChars[i];
     if (!HANZI_RE.test(expected)) continue;
     if (nextChars[i] === expected) continue;
     const changed = i >= prevChars.length || prevChars[i] !== nextChars[i];
@@ -277,7 +334,7 @@ const detectMistakes = (prev: string, next: string) => {
       ? wubiBuffer.value.toLowerCase()
       : undefined;
   for (const index of newlyWrong) {
-    emit("mistake", { character: targetChars[index], wubiCode: wubi, index });
+    emit("mistake", { character: expectedChars[index], wubiCode: wubi, index });
   }
 };
 
@@ -325,6 +382,7 @@ watch(
     typedText.value = "";
     committedText.value = "";
     wubiBuffer.value = "";
+    lastCenteredLineTop = Number.NaN;
     clearHints();
   }
 );
@@ -339,19 +397,34 @@ watch(
   }
 );
 
+watch(
+  currentIndex,
+  () => {
+    void nextTick(() => {
+      requestAnimationFrame(scrollCurrentToCenter);
+    });
+  }
+);
+
 const focusInput = async () => {
   await nextTick();
   inputRef.value?.focus();
 };
 
-const onCharClick = (index: number, character: string) => {
-  if (!HANZI_RE.test(character)) return;
+const onCharClick = (payload: { index: number; character: string }) => {
+  const { index, character } = payload;
   if (shownHintIndex.value === index) {
     shownHintIndex.value = null;
+    hintLoading.value = false;
     void focusInput();
     return;
   }
   shownHintIndex.value = index;
+  hintLoading.value = !hintByIndex.value[index];
+  if (!props.disabled) {
+    const cached = hintByIndex.value[index] ?? wubiCache.get(character);
+    emit("mistake", { character, wubiCode: cached?.code, index });
+  }
   void requestHint(index, character).finally(() => {
     void focusInput();
   });
@@ -381,10 +454,20 @@ onMounted(async () => {
   ensureAllPools();
   await nextTick();
   bindNativeIme();
+  if (targetRef.value && typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(() => {
+      lastCenteredLineTop = Number.NaN;
+      scrollCurrentToCenter();
+    });
+    resizeObserver.observe(targetRef.value);
+  }
+  requestAnimationFrame(scrollCurrentToCenter);
   void focusInput();
 });
 
 onUnmounted(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   unbindNativeIme();
   for (const pool of audioPools.values()) {
     for (const audio of pool) {
@@ -401,32 +484,33 @@ defineExpose({ focusInput, resetTyped });
 
 <template>
   <n-space vertical size="large">
-    <p class="hint">对照上方文字输入。正确为绿色，错误为红色，当前字符有下划线。点击汉字可查看五笔编码和字根。</p>
-    <div class="target" aria-label="需要输入的文字">
-      <n-tooltip
-        v-for="(item, index) in chars"
-        :key="`${item.char}-${index}`"
-        :show="isHintVisible(index)"
-        trigger="manual"
-        placement="top"
-      >
-        <template #trigger>
-          <span
-            class="target__char"
-            :class="[
-              `is-${item.status}`,
-              item.char === '\n' ? 'is-newline' : '',
-              HANZI_RE.test(item.char) ? 'is-clickable' : '',
-              isHintVisible(index) ? 'has-hint' : ''
-            ]"
-            @click.stop="onCharClick(index, item.char)"
-          >{{ item.char === " " ? "\u00A0" : item.char === "\n" ? "" : item.char }}</span>
+    <p class="hint">对照上方文字输入。正确为绿色，错误为红色，当前字符有下划线。点击汉字可在下方查看五笔编码和字根。</p>
+    <div ref="targetRef" class="target" aria-label="需要输入的文字">
+      <div class="target__inner">
+        <TypingPracticeChunk
+          v-for="(chunk, chunkIndex) in chunks"
+          :key="chunk.start"
+          :chars="chunk.chars"
+          :clickable="chunk.clickable"
+          :start-index="chunk.start"
+          :typed="chunkTyped[chunkIndex] ?? ''"
+          :has-cursor="cursorChunkStart === chunk.start"
+          :hint-index="hintIndexForChunk(chunk.start, chunk.chars.length)"
+          @char-click="onCharClick"
+        />
+      </div>
+    </div>
+    <div class="wubi-bar" aria-live="polite">
+      <template v-if="shownHintIndex != null">
+        <span class="wubi-bar__char">{{ shownHintChar }}</span>
+        <span v-if="hintLoading && !activeHint">查询中…</span>
+        <template v-else-if="activeHint">
+          <span>五笔 {{ activeHint.code }}</span>
+          <span v-if="activeHint.roots.length">字根 {{ activeHint.roots.join(" ") }}</span>
         </template>
-        <div v-if="charHint(index)" class="wubi-hint">
-          <div>五笔 {{ charHint(index)?.code }}</div>
-          <div v-if="charHint(index)?.roots.length">字根 {{ charHint(index)?.roots.join(" ") }}</div>
-        </div>
-      </n-tooltip>
+        <span v-else>暂无五笔编码</span>
+      </template>
+      <span v-else>点击汉字查看五笔编码和字根</span>
     </div>
     <n-input
       ref="inputRef"
@@ -435,7 +519,7 @@ defineExpose({ focusInput, resetTyped });
       size="large"
       placeholder="在这里开始打字"
       :disabled="disabled"
-      :autosize="{ minRows: 3, maxRows: 8 }"
+      :autosize="{ minRows: 2, maxRows: 3 }"
       :status="isFinished ? 'success' : undefined"
       @keydown="onKeydown"
     />
@@ -444,7 +528,7 @@ defineExpose({ focusInput, resetTyped });
       <n-slider v-model:value="volume" :min="0" :max="1" :step="0.01" class="volume-slider" />
     </n-space>
     <n-space align="center" justify="space-between">
-      <span class="meta">准确率 {{ accuracy }}% · {{ [...comparisonText].length }}/{{ [...targetText].length }}</span>
+      <span class="meta">准确率 {{ accuracy }}% · {{ typedChars.length }}/{{ targetChars.length }}</span>
       <n-space>
         <n-button size="small" @click="previewSounds">试听</n-button>
         <n-button :disabled="disabled" @click="resetTyped">重打</n-button>
@@ -464,66 +548,53 @@ defineExpose({ focusInput, resetTyped });
 }
 
 .target {
+  --target-line: 1.7em;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
   font-size: 22px;
   line-height: 1.7;
   letter-spacing: 0.02em;
-  padding: 16px 18px;
+  max-height: calc(var(--target-line) * 5);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 16px;
   border-radius: 10px;
   border: 1px solid rgba(127, 127, 127, 0.25);
   background: rgba(127, 127, 127, 0.06);
   word-break: break-word;
+  scrollbar-gutter: stable;
 }
 
-.target__char {
-  display: inline-block;
-  min-width: 0.45em;
+.target__inner {
+  padding-top: calc(var(--target-line) * 2);
+  padding-bottom: calc(var(--target-line) * 2);
 }
 
-.target :deep(.n-tooltip-trigger) {
-  display: inline;
+.wubi-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(32, 128, 240, 0.28);
+  background: rgba(32, 128, 240, 0.08);
+  color: rgba(127, 127, 127, 0.95);
+  font-size: 14px;
+  line-height: 1.4;
 }
 
-.target__char.is-clickable {
-  cursor: pointer;
-}
-
-.target__char.has-hint {
-  box-shadow: inset 0 -2px 0 rgba(32, 128, 240, 0.55);
-}
-
-.target__char.is-newline {
-  display: block;
-  min-width: 0;
-  height: 0;
-}
-
-.target__char.is-correct {
-  color: #18a058;
-}
-
-.target__char.is-wrong {
-  color: #d03050;
-  background: rgba(208, 48, 80, 0.12);
-  border-radius: 3px;
-}
-
-.target__char.is-current {
-  border-bottom: 2px solid #2080f0;
+.wubi-bar__char {
+  min-width: 1.4em;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .done {
   color: #18a058;
   font-weight: 600;
-}
-
-.wubi-hint {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.4;
-  font-size: 13px;
 }
 
 .volume-label {
