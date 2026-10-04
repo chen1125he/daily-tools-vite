@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from "axios";
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   NButton,
@@ -22,6 +22,7 @@ import {
   getTypingArticle,
   getTypingPractice,
   startTypingPractice,
+  updateTypingPractice,
   type TypingErrorMark,
   type TypingPractice,
   type TypingPracticeStatus,
@@ -80,7 +81,11 @@ const submitting = ref(false);
 const practice = ref<TypingPractice | null>(null);
 const typedBody = ref("");
 const nowMs = ref(Date.now());
+const SAVE_INTERVAL_MS = 30_000;
 let tickTimer: number | null = null;
+let saveTimer: number | null = null;
+let lastSavedBody = "";
+let savingDraft = false;
 
 const articleTitle = computed(() => practice.value?.typing_article?.title ?? "打字练习");
 const articleBody = computed(() => practice.value?.typing_article?.body ?? "");
@@ -169,6 +174,43 @@ const applyWubiHintToErrorMarks = (payload: { character: string; wubiCode: strin
   if (changed) practice.value = { ...practice.value, typing_error_marks: next };
 };
 
+const persistTypedBody = async () => {
+  const current = practice.value;
+  if (!current || current.status !== "in_progress" || submitting.value) return;
+  const typed = typedBody.value;
+  if (typed === lastSavedBody || savingDraft) return;
+  savingDraft = true;
+  try {
+    const record = await updateTypingPractice(current.id, { typed_body: typed });
+    lastSavedBody = typed;
+    if (practice.value?.id === current.id) {
+      practice.value = {
+        ...practice.value,
+        typed_body: record.typed_body,
+        updated_at: record.updated_at
+      };
+    }
+  } catch {
+    // 自动保存失败不打断打字
+  } finally {
+    savingDraft = false;
+  }
+};
+
+const stopAutosave = () => {
+  if (saveTimer != null) {
+    window.clearInterval(saveTimer);
+    saveTimer = null;
+  }
+};
+
+const startAutosave = () => {
+  stopAutosave();
+  saveTimer = window.setInterval(() => {
+    void persistTypedBody();
+  }, SAVE_INTERVAL_MS);
+};
+
 const ensureArticle = async (record: TypingPractice): Promise<TypingPractice> => {
   if (record.typing_article) return record;
   try {
@@ -190,6 +232,7 @@ const loadPractice = async () => {
     const record = await ensureArticle(await getTypingPractice(practiceId.value));
     practice.value = record;
     typedBody.value = record.typed_body ?? "";
+    lastSavedBody = typedBody.value;
     if (record.status === "pending") {
       await handleStart();
     }
@@ -207,7 +250,8 @@ const handleStart = async () => {
   try {
     const record = await ensureArticle(await startTypingPractice(practice.value.id));
     practice.value = record;
-    typedBody.value = "";
+    typedBody.value = record.typed_body ?? typedBody.value;
+    lastSavedBody = typedBody.value;
   } catch (error) {
     message.error(apiErrorMessage(error, "开始练习失败"));
   } finally {
@@ -236,17 +280,25 @@ const handleComplete = async () => {
     return;
   }
   submitting.value = true;
+  stopAutosave();
   try {
     const record = await ensureArticle(await completeTypingPractice(practice.value.id, typed));
     practice.value = record;
     typedBody.value = record.typed_body ?? typed;
+    lastSavedBody = typedBody.value;
     message.success("练习已完成");
   } catch (error) {
     message.error(apiErrorMessage(error, "提交成绩失败"));
+    if (practice.value?.status === "in_progress") startAutosave();
   } finally {
     submitting.value = false;
   }
 };
+
+watch(isInProgress, (inProgress) => {
+  if (inProgress) startAutosave();
+  else stopAutosave();
+});
 
 onMounted(() => {
   tickTimer = window.setInterval(() => {
@@ -256,6 +308,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  stopAutosave();
+  void persistTypedBody();
   if (tickTimer != null) {
     window.clearInterval(tickTimer);
   }

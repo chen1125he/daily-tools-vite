@@ -140,6 +140,15 @@ export const completeTypingPractice = async (id: number, typedBody: string): Pro
   });
 };
 
+export const updateTypingPractice = async (
+  id: number,
+  payload: { typed_body: string }
+): Promise<TypingPractice> => {
+  return await http.put<TypingPractice, TypingPractice>(`/v1/typing_practices/${id}`, {
+    typing_practice: payload
+  });
+};
+
 export interface CreateTypingErrorMarkPayload {
   character: string;
   wubi_code?: string;
