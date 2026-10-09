@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from "axios";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   NButton,
@@ -80,12 +80,24 @@ const starting = ref(false);
 const submitting = ref(false);
 const practice = ref<TypingPractice | null>(null);
 const typedBody = ref("");
+const boardRef = ref<{
+  scrollToTypingPosition?: (options?: { pinPageTop?: boolean }) => void;
+  focusInput?: (options?: { preventScroll?: boolean }) => Promise<void>;
+} | null>(null);
 const nowMs = ref(Date.now());
 const SAVE_INTERVAL_MS = 30_000;
 let tickTimer: number | null = null;
 let saveTimer: number | null = null;
 let lastSavedBody = "";
 let savingDraft = false;
+
+const syncBoardToTypingPosition = async () => {
+  await nextTick();
+  requestAnimationFrame(() => {
+    boardRef.value?.scrollToTypingPosition?.({ pinPageTop: true });
+    window.scrollTo(0, 0);
+  });
+};
 
 const articleTitle = computed(() => practice.value?.typing_article?.title ?? "打字练习");
 const articleBody = computed(() => practice.value?.typing_article?.body ?? "");
@@ -241,6 +253,7 @@ const loadPractice = async () => {
     void router.replace("/typing/practices");
   } finally {
     loading.value = false;
+    void syncBoardToTypingPosition();
   }
 };
 
@@ -256,6 +269,7 @@ const handleStart = async () => {
     message.error(apiErrorMessage(error, "开始练习失败"));
   } finally {
     starting.value = false;
+    void syncBoardToTypingPosition();
   }
 };
 
@@ -333,6 +347,7 @@ onUnmounted(() => {
             <template v-if="isInProgress">
               <p class="meta">用时 {{ liveDurationLabel }} · 打错汉字会自动记入错字表</p>
               <TypingPracticeBoard
+                ref="boardRef"
                 v-model="typedBody"
                 :target-text="articleBody"
                 :record-mistake="handleMistake"

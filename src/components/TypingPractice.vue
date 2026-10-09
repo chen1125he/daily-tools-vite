@@ -150,6 +150,34 @@ const ensureCurrentVisible = () => {
   }
 };
 
+/** 将输入框光标与滚动位置对齐到已输入文本末尾（恢复练习进度时用） */
+const ensureInputAtTypingPosition = () => {
+  const el = nativeInput;
+  if (!el) return;
+  const len = el.value.length;
+  try {
+    el.setSelectionRange(len, len);
+  } catch {
+    // ignore unsupported selection
+  }
+  el.scrollTop = el.scrollHeight;
+};
+
+/** 只滚动练习区内的展示框/输入框，不带动整页滚动 */
+const scrollToTypingPosition = (options?: { pinPageTop?: boolean }) => {
+  const pageX = window.scrollX;
+  const pageY = window.scrollY;
+  ensureCurrentVisible();
+  ensureInputAtTypingPosition();
+  if (options?.pinPageTop) {
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (window.scrollX !== pageX || window.scrollY !== pageY) {
+    window.scrollTo(pageX, pageY);
+  }
+};
+
 const shownHintChar = computed(() =>
   shownHintIndex.value == null ? "" : (targetChars.value[shownHintIndex.value] ?? "")
 );
@@ -496,9 +524,25 @@ watch(currentIndex, () => {
   });
 });
 
-const focusInput = async () => {
+const focusInput = async (options?: { preventScroll?: boolean }) => {
   await nextTick();
+  const preventScroll = options?.preventScroll ?? false;
+  if (nativeInput) {
+    nativeInput.focus({ preventScroll });
+    return;
+  }
   inputRef.value?.focus();
+};
+
+/** 布局稳定后滚到当前打字位置（展示框 + 输入框），整页保持在顶部 */
+const scheduleScrollToTypingPosition = () => {
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToTypingPosition({ pinPageTop: true });
+      });
+    });
+  });
 };
 
 const onCharClick = async (payload: { index: number; character: string }) => {
@@ -548,7 +592,8 @@ onMounted(async () => {
   ensureAllPools();
   await nextTick();
   bindNativeIme();
-  void focusInput();
+  await focusInput({ preventScroll: true });
+  scheduleScrollToTypingPosition();
 });
 
 onUnmounted(() => {
@@ -564,7 +609,7 @@ onUnmounted(() => {
   poolIndexes.clear();
 });
 
-defineExpose({ focusInput, resetTyped });
+defineExpose({ focusInput, resetTyped, scrollToTypingPosition });
 </script>
 
 <template>
