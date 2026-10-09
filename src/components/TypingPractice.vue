@@ -4,18 +4,27 @@ import { NButton, NInput, NSlider, NSpace } from "naive-ui";
 import { lookupTypingWord, type TypingWord } from "../api/modules/typing";
 import TypingPracticeChunk from "./TypingPracticeChunk.vue";
 
+type MistakePayload = { character: string; wubiCode?: string; index: number };
+
 const props = withDefaults(
   defineProps<{
     targetText: string;
     disabled?: boolean;
+    /** 记录错字；点击查字根时会先 await 完成再请求 lookup */
+    recordMistake?: (payload: MistakePayload) => void | Promise<void>;
   }>(),
   { disabled: false }
 );
 
 const emit = defineEmits<{
-  mistake: [payload: { character: string; wubiCode?: string; index: number }];
+  mistake: [payload: MistakePayload];
   wubiHint: [payload: { character: string; wubiCode: string; wubiRoots: string[] }];
 }>();
+
+const reportMistake = async (payload: MistakePayload) => {
+  emit("mistake", payload);
+  await props.recordMistake?.(payload);
+};
 
 const typedText = defineModel<string>({ default: "" });
 
@@ -25,7 +34,8 @@ const SOUND = {
   low: "/sounds/mx-blue-key-low.wav",
   sharp: "/sounds/mx-blue-key-sharp.wav",
   enter: "/sounds/mx-blue-enter.wav",
-  punct: "/sounds/mx-blue-punct.wav"
+  punct: "/sounds/mx-blue-punct.wav",
+  stick: "/sounds/stick.wav"
 } as const;
 
 const ALL_SOUNDS = Object.values(SOUND);
@@ -274,6 +284,10 @@ const playSrc = (src: string) => {
 };
 
 const playTypeSound = (char = "a") => {
+  if (combo.value > 10) {
+    playSrc(SOUND.stick);
+    return;
+  }
   playSrc(pickSound(char));
 };
 
@@ -397,7 +411,7 @@ const detectMistakes = (prev: string, next: string) => {
       ? wubiBuffer.value.toLowerCase()
       : undefined;
   for (const index of newlyWrong) {
-    emit("mistake", { character: expectedChars[index], wubiCode: wubi, index });
+    void reportMistake({ character: expectedChars[index], wubiCode: wubi, index });
   }
 };
 
@@ -410,7 +424,7 @@ const onCompositionEnd = (event: CompositionEvent) => {
   const committed = Boolean(event.data);
   const justPlayedKey = Date.now() - lastKeySoundAt < 160;
   if (committed && !justPlayedKey) {
-    playSrc(SOUND.enter);
+    playSrc(combo.value > 10 ? SOUND.stick : SOUND.enter);
   }
   void nextTick(() => {
     composing.value = false;
@@ -487,7 +501,7 @@ const focusInput = async () => {
   inputRef.value?.focus();
 };
 
-const onCharClick = (payload: { index: number; character: string }) => {
+const onCharClick = async (payload: { index: number; character: string }) => {
   const { index, character } = payload;
   if (shownHintIndex.value === index) {
     shownHintIndex.value = null;
@@ -497,13 +511,16 @@ const onCharClick = (payload: { index: number; character: string }) => {
   }
   shownHintIndex.value = index;
   hintLoading.value = !hintByIndex.value[index];
-  if (!props.disabled) {
-    const cached = hintByIndex.value[index] ?? wubiCache.get(character);
-    emit("mistake", { character, wubiCode: cached?.code, index });
-  }
-  void requestHint(index, character).finally(() => {
+  try {
+    if (!props.disabled) {
+      const cached = hintByIndex.value[index] ?? wubiCache.get(character);
+      await reportMistake({ character, wubiCode: cached?.code, index });
+      if (shownHintIndex.value !== index) return;
+    }
+    await requestHint(index, character);
+  } finally {
     void focusInput();
-  });
+  }
 };
 
 const resetTyped = async () => {

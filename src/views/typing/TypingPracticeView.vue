@@ -335,7 +335,7 @@ onUnmounted(() => {
               <TypingPracticeBoard
                 v-model="typedBody"
                 :target-text="articleBody"
-                @mistake="handleMistake"
+                :record-mistake="handleMistake"
                 @wubi-hint="applyWubiHintToErrorMarks"
               />
               <n-space justify="end">
