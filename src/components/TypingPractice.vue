@@ -44,6 +44,7 @@ const POOL_SIZE = 4;
 const CHUNK_SIZE = 32;
 const VOLUME_STORAGE_KEY = "typing-practice-volume";
 const DEFAULT_VOLUME = 0.28;
+const COMBO_IDLE_MS = 3000;
 const HANZI_RE = /^[\u4e00-\u9fff]$/;
 
 const readStoredVolume = () => {
@@ -63,6 +64,8 @@ const wubiBuffer = ref("");
 const inputRef = ref<InstanceType<typeof NInput> | null>(null);
 const targetRef = ref<HTMLElement | null>(null);
 const volume = ref(readStoredVolume());
+const combo = ref(0);
+const maxCombo = ref(0);
 const audioPools = new Map<string, HTMLAudioElement[]>();
 const poolIndexes = new Map<string, number>();
 type WubiHint = {
@@ -77,6 +80,7 @@ const shownHintIndex = ref<number | null>(null);
 const hintLoading = ref(false);
 let nativeInput: HTMLInputElement | HTMLTextAreaElement | null = null;
 let lastKeySoundAt = 0;
+let comboIdleTimer: ReturnType<typeof setTimeout> | null = null;
 
 const comparisonText = computed(() => (composing.value ? committedText.value : typedText.value));
 const targetChars = computed(() => [...props.targetText]);
@@ -318,6 +322,62 @@ const keyFromEvent = (event: KeyboardEvent) => {
   return null;
 };
 
+const clearComboIdleTimer = () => {
+  if (comboIdleTimer == null) return;
+  clearTimeout(comboIdleTimer);
+  comboIdleTimer = null;
+};
+
+const breakCombo = () => {
+  clearComboIdleTimer();
+  combo.value = 0;
+};
+
+const scheduleComboIdle = () => {
+  clearComboIdleTimer();
+  if (combo.value <= 0) return;
+  comboIdleTimer = setTimeout(() => {
+    combo.value = 0;
+    comboIdleTimer = null;
+  }, COMBO_IDLE_MS);
+};
+
+const resetComboStats = () => {
+  breakCombo();
+  maxCombo.value = 0;
+};
+
+const bumpCombo = (count: number) => {
+  if (count <= 0) return;
+  combo.value += count;
+  if (combo.value > maxCombo.value) maxCombo.value = combo.value;
+  scheduleComboIdle();
+};
+
+const updateCombo = (prev: string, next: string) => {
+  if (props.disabled) return;
+  const prevChars = [...prev];
+  const nextChars = [...next];
+  const expectedChars = targetChars.value;
+  const len = Math.min(nextChars.length, expectedChars.length);
+  for (let i = 0; i < len; i += 1) {
+    if (nextChars[i] === expectedChars[i]) continue;
+    const changed = i >= prevChars.length || prevChars[i] !== nextChars[i];
+    if (changed) {
+      breakCombo();
+      return;
+    }
+  }
+  if (nextChars.length <= prevChars.length) return;
+  let gained = 0;
+  for (let i = prevChars.length; i < nextChars.length; i += 1) {
+    if (i >= expectedChars.length) break;
+    if (nextChars[i] !== expectedChars[i]) break;
+    gained += 1;
+  }
+  if (gained > 0) bumpCombo(gained);
+};
+
 const detectMistakes = (prev: string, next: string) => {
   if (props.disabled) return;
   const prevChars = [...prev];
@@ -401,6 +461,7 @@ watch(
     committedText.value = "";
     wubiBuffer.value = "";
     clearHints();
+    resetComboStats();
   }
 );
 
@@ -409,6 +470,7 @@ watch(
   ([next, isComposing]) => {
     if (isComposing) return;
     detectMistakes(committedText.value, next);
+    updateCombo(committedText.value, next);
     committedText.value = next;
     wubiBuffer.value = "";
   }
@@ -448,6 +510,7 @@ const resetTyped = async () => {
   typedText.value = "";
   committedText.value = "";
   clearHints();
+  resetComboStats();
   await focusInput();
 };
 
@@ -472,6 +535,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  clearComboIdleTimer();
   unbindNativeIme();
   for (const pool of audioPools.values()) {
     for (const audio of pool) {
@@ -530,7 +594,12 @@ defineExpose({ focusInput, resetTyped });
       <n-slider v-model:value="volume" :min="0" :max="1" :step="0.01" class="volume-slider" />
     </n-space>
     <n-space align="center" justify="space-between">
-      <span class="meta">准确率 {{ accuracy }}% · {{ typedChars.length }}/{{ targetChars.length }}</span>
+      <span class="meta">
+        准确率 {{ accuracy }}% · {{ typedChars.length }}/{{ targetChars.length }}
+        <span class="combo" :class="{ 'combo--active': combo > 0 }">
+          · 连击 {{ combo }}<template v-if="maxCombo > 0">（最高 {{ maxCombo }}）</template>
+        </span>
+      </span>
       <n-space>
         <n-button size="small" @click="previewSounds">试听</n-button>
         <n-button :disabled="disabled" @click="resetTyped">重打</n-button>
@@ -601,5 +670,14 @@ defineExpose({ focusInput, resetTyped });
 
 .volume-slider {
   width: 180px;
+}
+
+.combo {
+  transition: color 0.15s ease;
+}
+
+.combo--active {
+  color: #f0a020;
+  font-weight: 600;
 }
 </style>
