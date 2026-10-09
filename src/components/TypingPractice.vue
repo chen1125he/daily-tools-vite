@@ -359,6 +359,21 @@ const onCompositionEnd = (event: CompositionEvent) => {
 
 const onKeydown = (event: KeyboardEvent) => {
   if (props.disabled) return;
+  if (
+    event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.shiftKey &&
+    (event.key === "f" || event.key === "F")
+  ) {
+    event.preventDefault();
+    const index = currentIndex.value;
+    if (index == null) return;
+    const character = targetChars.value[index];
+    if (!character || !HANZI_RE.test(character)) return;
+    onCharClick({ index, character });
+    return;
+  }
   if (event.metaKey || event.ctrlKey || event.altKey) return;
   const imeActive = composing.value || event.isComposing;
   if (imeActive && /^[a-zA-Z]$/.test(event.key) && wubiBuffer.value.length < 4) {
@@ -473,7 +488,7 @@ defineExpose({ focusInput, resetTyped });
 
 <template>
   <n-space vertical size="large">
-    <p class="hint">对照上方文字输入。正确为绿色，错误为红色，当前字符有下划线。点击汉字可在下方查看五笔编码和字根。</p>
+    <p class="hint">对照上方文字输入。正确为绿色，错误为红色，当前字符有下划线。点击汉字或按 Ctrl+F 可在下方查看五笔编码和字根。</p>
     <div ref="targetRef" class="target" aria-label="需要输入的文字">
       <TypingPracticeChunk
         v-for="(chunk, chunkIndex) in chunks"
@@ -497,7 +512,7 @@ defineExpose({ focusInput, resetTyped });
         </template>
         <span v-else>暂无五笔编码</span>
       </template>
-      <span v-else>点击汉字查看五笔编码和字根</span>
+      <span v-else>点击汉字或按 Ctrl+F 查看五笔编码和字根</span>
     </div>
     <n-input
       ref="inputRef"
